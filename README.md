@@ -21,6 +21,35 @@ docker compose up -d --build
 # Default login: admin / Admin@1234
 ```
 
+## 🐧 Ubuntu Server Deployment
+
+To install and run FreeRADIUS Manager on a fresh Ubuntu Server:
+
+```bash
+# 1. Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# 2. Install Docker & Docker Compose
+sudo apt install -y docker.io docker-compose-v2
+sudo systemctl enable --now docker
+
+# 3. Clone repository and enter directory
+git clone https://github.com/pirateszero92/free-redius.git
+cd free-redius
+
+# 4. Copy environment file template
+cp .env.example .env
+
+# 5. Edit .env to customize production passwords & JWT secrets
+nano .env
+
+# 6. Build and start all containers in background
+sudo docker compose up -d --build
+```
+
+Access the Web UI by navigating to `http://<your_ubuntu_server_ip>` on port 80.
+
+
 ## 📦 Services
 
 | Service | Port | Description |
