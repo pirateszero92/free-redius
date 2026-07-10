@@ -246,14 +246,53 @@ async function openGroupMembersModal(groupname) {
     const memberUsernames = members.map(m => m.username);
     // Filter out users who are already members of this group
     const availableUsers = (usersData.data || []).filter(u => !memberUsernames.includes(u.username));
+    
+    // Save to window for global access by filter function
+    window.gmAvailableUsers = availableUsers;
 
     createModal('group-members-modal', `👥 Members: ${groupname}`,
-      `<div style="margin-bottom:12px;">
-        <div class="flex gap-8">
-          <input id="gm-username" class="form-input" placeholder="Add username..." style="flex:1;" list="gm-users-datalist">
-          <datalist id="gm-users-datalist">
-            ${availableUsers.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.full_name ? `${u.full_name} (${u.username})` : u.username)}</option>`).join('')}
-          </datalist>
+      `<style>
+        .autocomplete-container {
+          position: relative;
+          flex: 1;
+        }
+        .autocomplete-dropdown {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          max-height: 200px;
+          overflow-y: auto;
+          background: #1f293d; /* match theme elevated background */
+          border: 1px solid #3b4b66;
+          border-radius: var(--radius-sm);
+          z-index: 1050;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .autocomplete-dropdown.hidden {
+          display: none;
+        }
+        .autocomplete-item {
+          padding: 8px 12px;
+          cursor: pointer;
+          font-size: 13px;
+          color: var(--text-primary);
+          border-bottom: 1px solid #2a364f;
+          text-align: left;
+        }
+        .autocomplete-item:last-child {
+          border-bottom: none;
+        }
+        .autocomplete-item:hover {
+          background: #2a364f;
+        }
+      </style>
+      <div style="margin-bottom:12px;">
+        <div class="flex gap-8" style="overflow: visible;">
+          <div class="autocomplete-container">
+            <input id="gm-username" class="form-input" placeholder="Add username..." style="width:100%;" oninput="filterGmUserlist(this.value)" autocomplete="off">
+            <div id="gm-autocomplete-list" class="autocomplete-dropdown hidden"></div>
+          </div>
           <button class="btn btn-primary btn-sm" onclick="addGroupMember('${groupname}')">Add</button>
         </div>
       </div>
@@ -308,3 +347,51 @@ function deleteGroup(groupname) {
     } catch (err) { toast(err.message, 'error'); }
   });
 }
+
+/* ---- Autocomplete helpers ---- */
+function filterGmUserlist(val) {
+  const listEl = document.getElementById('gm-autocomplete-list');
+  if (!listEl) return;
+  const search = val.trim().toLowerCase();
+  if (!search) {
+    listEl.innerHTML = '';
+    listEl.classList.add('hidden');
+    return;
+  }
+  const matches = (window.gmAvailableUsers || []).filter(u => 
+    u.username.toLowerCase().includes(search) || 
+    (u.full_name && u.full_name.toLowerCase().includes(search))
+  );
+  if (!matches.length) {
+    listEl.innerHTML = '<div style="padding:8px 12px;color:var(--text-secondary);font-size:12px;">No users found</div>';
+    listEl.classList.remove('hidden');
+    return;
+  }
+  listEl.innerHTML = matches.map(u => `
+    <div class="autocomplete-item" onclick="selectGmUser('${escapeHtml(u.username)}')">
+      <strong>${escapeHtml(u.username)}</strong>
+      ${u.full_name ? `<span style="color:var(--text-secondary);margin-left:6px;">(${escapeHtml(u.full_name)})</span>` : ''}
+    </div>
+  `).join('');
+  listEl.classList.remove('hidden');
+}
+window.filterGmUserlist = filterGmUserlist;
+
+function selectGmUser(username) {
+  const input = document.getElementById('gm-username');
+  if (input) input.value = username;
+  const listEl = document.getElementById('gm-autocomplete-list');
+  if (listEl) {
+    listEl.innerHTML = '';
+    listEl.classList.add('hidden');
+  }
+}
+window.selectGmUser = selectGmUser;
+
+// Hide dropdown on click outside
+document.addEventListener('click', (e) => {
+  const listEl = document.getElementById('gm-autocomplete-list');
+  if (listEl && !e.target.closest('#gm-username') && !e.target.closest('#gm-autocomplete-list')) {
+    listEl.classList.add('hidden');
+  }
+});
