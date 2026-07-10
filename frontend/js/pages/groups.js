@@ -238,12 +238,22 @@ async function submitEditGroup(groupname) {
 
 async function openGroupMembersModal(groupname) {
   try {
-    const g = await API.get(`/groups/${groupname}`);
+    const [g, usersData] = await Promise.all([
+      API.get(`/groups/${groupname}`),
+      API.get('/users?limit=5000')
+    ]);
     const members = g.members || [];
+    const memberUsernames = members.map(m => m.username);
+    // Filter out users who are already members of this group
+    const availableUsers = (usersData.data || []).filter(u => !memberUsernames.includes(u.username));
+
     createModal('group-members-modal', `👥 Members: ${groupname}`,
       `<div style="margin-bottom:12px;">
         <div class="flex gap-8">
-          <input id="gm-username" class="form-input" placeholder="Add username..." style="flex:1;">
+          <input id="gm-username" class="form-input" placeholder="Add username..." style="flex:1;" list="gm-users-datalist">
+          <datalist id="gm-users-datalist">
+            ${availableUsers.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.full_name ? `${u.full_name} (${u.username})` : u.username)}</option>`).join('')}
+          </datalist>
           <button class="btn btn-primary btn-sm" onclick="addGroupMember('${groupname}')">Add</button>
         </div>
       </div>
@@ -253,10 +263,10 @@ async function openGroupMembersModal(groupname) {
           <thead><tr><th>Username</th><th>Priority</th><th style="text-align:right;">Action</th></tr></thead>
           <tbody>${members.map(m => `
             <tr id="gmr-${m.username}">
-              <td><code>${m.username}</code></td>
+              <td><code>${escapeHtml(m.username)}</code></td>
               <td>${m.priority}</td>
               <td style="text-align:right;">
-                <button class="btn btn-ghost btn-sm btn-icon" onclick="removeGroupMember('${groupname}','${m.username}')">✕</button>
+                <button class="btn btn-ghost btn-sm btn-icon" onclick="removeGroupMember('${groupname}','${escapeHtml(m.username)}')">✕</button>
               </td>
             </tr>`).join('')}
           </tbody>
