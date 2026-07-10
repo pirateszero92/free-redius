@@ -68,13 +68,17 @@ async function loadSessions(page) {
       <div style="overflow-x:auto;">
       <table>
         <thead><tr>
-          <th>Username</th><th>NAS IP</th><th>Called Station</th>
+          <th>Username</th><th>Device / MAC</th><th>NAS IP</th><th>Called Station</th>
           <th>Session Time</th><th>In ↓</th><th>Out ↑</th>
           <th>Start</th><th>Stop</th><th>Status</th>
         </tr></thead>
         <tbody>${data.data.map(s => `
           <tr>
             <td><code>${s.username}</code></td>
+            <td>
+              ${s.device_name ? `<code>${s.device_name}</code>` : ''}
+              <div class="text-xs text-muted" style="font-family:monospace;">${s.callingstationid || '—'}</div>
+            </td>
             <td><code>${s.nasipaddress}</code></td>
             <td class="text-sm text-muted">${s.calledstationid || '—'}</td>
             <td>${fmtDuration(s.acctsessiontime)}</td>

@@ -13,15 +13,19 @@ router.get('/sessions', async (req, res) => {
     const offset = (page - 1) * limit;
     const { username, nas, status } = req.query;
 
-    let query = db('radacct');
-    if (username) query = query.where('username', 'ilike', `%${username}%`);
-    if (nas) query = query.whereRaw(`nasipaddress::text ILIKE ?`, [`%${nas}%`]);
-    if (status === 'active') query = query.whereNull('acctstoptime');
-    if (status === 'stopped') query = query.whereNotNull('acctstoptime');
+    let query = db('radacct as s');
+    if (username) query = query.where('s.username', 'ilike', `%${username}%`);
+    if (nas) query = query.whereRaw(`s.nasipaddress::text ILIKE ?`, [`%${nas}%`]);
+    if (status === 'active') query = query.whereNull('s.acctstoptime');
+    if (status === 'stopped') query = query.whereNotNull('s.acctstoptime');
 
-    const total = await query.clone().count('radacctid as count').first();
+    const total = await query.clone().count('s.radacctid as count').first();
     const sessions = await query
-      .orderBy('acctstarttime', 'desc')
+      .select(
+        's.*',
+        db.raw("(SELECT split_part(replace(username, 'host/', ''), '.', 1) FROM radacct WHERE callingstationid = s.callingstationid AND username ILIKE 'host/%' ORDER BY acctstarttime DESC LIMIT 1) as device_name")
+      )
+      .orderBy('s.acctstarttime', 'desc')
       .limit(limit)
       .offset(offset);
 
