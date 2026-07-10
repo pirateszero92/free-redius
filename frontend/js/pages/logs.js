@@ -37,10 +37,10 @@ registerPage('logs', {
 
         <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
           <label class="toggle">
-            <input type="checkbox" id="logs-autorefresh" onchange="toggleLogsAutoRefresh(this.checked)">
+            <input type="checkbox" id="logs-autorefresh" onchange="toggleLogsAutoRefresh(this.checked)" checked>
             <span class="toggle-slider"></span>
           </label>
-          <span class="text-sm text-secondary">Auto-refresh (5s)</span>
+          <span class="text-sm text-secondary">Auto-refresh (2s)</span>
         </div>
       </div>
 
@@ -54,6 +54,8 @@ registerPage('logs', {
     </div>`,
   onload: () => {
     fetchLogs();
+    // Enable auto-refresh by default
+    toggleLogsAutoRefresh(true);
   },
   ondestroy: () => {
     // Clear auto-refresh timer when navigating away from this page
@@ -81,7 +83,7 @@ function toggleLogsAutoRefresh(checked) {
     logsAutoRefreshInterval = null;
   }
   if (checked) {
-    logsAutoRefreshInterval = setInterval(fetchLogs, 5000);
+    logsAutoRefreshInterval = setInterval(fetchLogs, 2000);
   }
 }
 
