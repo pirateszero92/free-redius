@@ -161,6 +161,7 @@ CREATE TABLE IF NOT EXISTS ad_settings (
     is_enabled      BOOLEAN NOT NULL DEFAULT FALSE,
     last_sync       TIMESTAMP,
     sync_interval   INTEGER NOT NULL DEFAULT 60,
+    selected_groups TEXT,
     created_at      TIMESTAMP DEFAULT NOW(),
     updated_at      TIMESTAMP DEFAULT NOW()
 );

@@ -18,6 +18,7 @@ router.get('/ad', async (req, res) => {
     // Never expose bind_password in response
     const { bind_password, ...safeSettings } = settings;
     safeSettings.bind_password_set = !!bind_password;
+    safeSettings.selected_groups = safeSettings.selected_groups ? JSON.parse(safeSettings.selected_groups) : [];
     res.json(safeSettings);
   } catch (err) {
     console.error('[settings/ad/get]', err);
@@ -33,7 +34,8 @@ router.put('/ad', async (req, res) => {
       bind_dn, bind_password,
       base_dn, user_filter, group_filter,
       user_attr, email_attr, display_name_attr,
-      group_member_attr, is_enabled, sync_interval
+      group_member_attr, is_enabled, sync_interval,
+      selected_groups
     } = req.body;
 
     const updates = {
@@ -55,6 +57,9 @@ router.put('/ad', async (req, res) => {
     if (group_member_attr !== undefined) updates.group_member_attr = group_member_attr;
     if (is_enabled !== undefined) updates.is_enabled = is_enabled;
     if (sync_interval !== undefined) updates.sync_interval = parseInt(sync_interval);
+    if (selected_groups !== undefined) {
+      updates.selected_groups = JSON.stringify(selected_groups);
+    }
 
     // Upsert
     const existing = await db('ad_settings').where({ id: 1 }).first();

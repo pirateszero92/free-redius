@@ -16,7 +16,13 @@ registerPage('settings', {
       </div>
       <div id="settings-tab-content"></div>
     </div>`,
-  onload: () => renderAdTab()
+  onload: async () => {
+    await renderAdTab();
+    const hostEl = document.getElementById('ad-host');
+    if (hostEl && hostEl.value) {
+      loadAdGroups();
+    }
+  }
 });
 
 function switchSettingsTab(tab) {
@@ -33,6 +39,7 @@ async function renderAdTab() {
   el.innerHTML = renderLoading();
   try {
     const s = await API.get('/settings/ad');
+    window.adSettings = s;
     el.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
         <!-- Left: AD Config -->
@@ -230,6 +237,16 @@ async function saveAdSettings(silent = false) {
   };
   const pw = document.getElementById('ad-bindpw').value;
   if (pw) body.bind_password = pw;
+
+  // Persist selected groups if the checklist is currently rendered
+  const checksExist = document.querySelectorAll('input[name="ad-group-check"]').length > 0;
+  if (checksExist) {
+    body.selected_groups = Array.from(document.querySelectorAll('input[name="ad-group-check"]:checked'))
+      .map(cb => cb.value);
+  } else if (window.adSettings && window.adSettings.selected_groups) {
+    body.selected_groups = window.adSettings.selected_groups;
+  }
+
   await API.put('/settings/ad', body);
   if (!silent) toast('AD settings saved', 'success');
 }
@@ -244,11 +261,20 @@ async function loadAdGroups() {
       el.innerHTML = `<span class="text-muted text-sm">No groups found in AD</span>`;
       return;
     }
-    el.innerHTML = groups.map(g => `
+    
+    // Fetch latest saved settings (including selected groups) to check the checkboxes
+    const s = await API.get('/settings/ad');
+    window.adSettings = s;
+    const saved = s.selected_groups || [];
+
+    el.innerHTML = groups.map(g => {
+      const isChecked = saved.includes(g.dn) || saved.includes(g.name);
+      return `
       <label style="display:flex;align-items:center;gap:8px;padding:6px;cursor:pointer;border-radius:var(--radius-sm);hover:background:var(--bg-hover);">
-        <input type="checkbox" value="${g.dn}" name="ad-group-check" style="accent-color:var(--accent-primary);">
+        <input type="checkbox" value="${g.dn}" name="ad-group-check" ${isChecked ? 'checked' : ''} style="accent-color:var(--accent-primary);">
         <span class="text-sm"><strong>${g.name}</strong> <span class="text-muted">(${g.member_count} members)</span></span>
-      </label>`).join('');
+      </label>`;
+    }).join('');
   } catch (err) {
     el.innerHTML = `<span class="text-danger text-sm">❌ ${err.message}</span>`;
   }
@@ -271,6 +297,12 @@ async function runSync() {
       sync_groups: true,
       selected_groups: selected
     });
+    
+    // Update local settings object with newly saved selected groups
+    if (window.adSettings) {
+      window.adSettings.selected_groups = selected;
+    }
+
     resultEl.innerHTML = `
       <div class="alert alert-success">
         <span class="alert-icon">✅</span>

@@ -70,6 +70,12 @@ app.listen(PORT, async () => {
     try {
       await testConnection();
       console.log('[API] Database connected successfully');
+      try {
+        const { startAutoSyncScheduler } = require('./utils/adSync');
+        startAutoSyncScheduler();
+      } catch (adErr) {
+        console.error('[API] Failed to start AD auto sync scheduler:', adErr.message);
+      }
       break;
     } catch (err) {
       retries--;
