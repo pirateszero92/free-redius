@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FreeRADIUS Manager</title>
+  <meta name="description" content="FreeRADIUS Web Management Interface with Active Directory Integration">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+</head>
+<body>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div id="login-page" class="login-page">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">📡</div>
+      <h1>FreeRADIUS</h1>
+      <p>Management Console</p>
+    </div>
+    <div id="login-error" class="login-error"></div>
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input id="login-username" type="text" class="form-input" placeholder="Enter username" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input id="login-password" type="password" class="form-input" placeholder="Enter password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" id="login-btn">
+        Sign In
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== APP LAYOUT ==================== -->
+<div id="app-layout" class="app-layout hidden">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">📡</div>
+      <div class="logo-text">
+        <strong>FreeRADIUS</strong>
+        <span>Management Console</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Overview</div>
+      <div class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Management</div>
+      <div class="nav-item" data-page="users">
+        <span class="nav-icon">👤</span> Users
+      </div>
+      <div class="nav-item" data-page="groups">
+        <span class="nav-icon">👥</span> Groups
+      </div>
+      <div class="nav-item" data-page="acl">
+        <span class="nav-icon">🛡️</span> ACL Profiles
+      </div>
+      <div class="nav-item" data-page="nas">
+        <span class="nav-icon">🌐</span> NAS Clients
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Monitoring</div>
+      <div class="nav-item" data-page="accounting">
+        <span class="nav-icon">📋</span> Accounting
+      </div>
+      <div class="nav-item" data-page="logs">
+        <span class="nav-icon">📟</span> System Logs
+      </div>
+      <div class="nav-item" data-page="reports">
+        <span class="nav-icon">📈</span> Reports
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Configuration</div>
+      <div class="nav-item" data-page="settings">
+        <span class="nav-icon">⚙️</span> Settings
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-card" id="user-card">
+        <div class="user-avatar" id="sidebar-avatar">A</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-username">admin</div>
+          <div class="user-role" id="sidebar-role">Administrator</div>
+        </div>
+        <span style="color:var(--text-muted);font-size:16px;" title="Logout" id="logout-btn">⏏</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="topbar">
+      <div>
+        <span class="topbar-title" id="page-title">Dashboard</span>
+        <span class="topbar-subtitle" id="page-subtitle"></span>
+      </div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+    <div class="page-content" id="page-content">
+      <!-- Page content rendered here -->
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Scripts -->
+<script src="/js/app.js"></script>
+<script src="/js/pages/dashboard.js"></script>
+<script src="/js/pages/users.js"></script>
+<script src="/js/pages/groups.js"></script>
+<script src="/js/pages/acl.js"></script>
+<script src="/js/pages/nas.js"></script>
+<script src="/js/pages/accounting.js"></script>
+<script src="/js/pages/settings.js"></script>
+<script src="/js/pages/logs.js"></script>
+<script src="/js/pages/reports.js"></script>
+
+</body>
+</html>

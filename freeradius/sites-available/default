@@ -1,0 +1,130 @@
+server default {
+
+listen {
+    type = auth
+    ipaddr = *
+    port = 0
+    limit {
+        max_connections = 16
+        lifetime = 0
+        idle_timeout = 30
+    }
+}
+
+listen {
+    ipaddr = *
+    port = 0
+    type = acct
+    limit {
+    }
+}
+
+listen {
+    type = auth
+    ipv6addr = ::
+    port = 0
+    limit {
+        max_connections = 16
+        lifetime = 0
+        idle_timeout = 30
+    }
+}
+
+listen {
+    ipv6addr = ::
+    port = 0
+    type = acct
+    limit {
+    }
+}
+
+authorize {
+    filter_username
+    preprocess
+    chap
+    mschap
+    digest
+    suffix
+    eap {
+        ok = return
+    }
+    files
+    sql
+    -ldap
+    expiration
+    logintime
+    pap
+
+    # Enforce Global Max Sessions per User limit
+    update request {
+        &Tmp-Integer-0 := "%{sql: SELECT value::integer FROM app_settings WHERE key = 'max_sessions_per_user' LIMIT 1}"
+        &Tmp-Integer-1 := "%{sql: SELECT COUNT(*) FROM radacct WHERE username = '%{SQL-User-Name}' AND acctstoptime IS NULL}"
+    }
+    if (&Tmp-Integer-0 > 0) {
+        if (&Tmp-Integer-1 >= &Tmp-Integer-0) {
+            update reply {
+                Reply-Message := "Simultaneous-Use limit exceeded (Max %{Tmp-Integer-0} device(s) allowed)"
+            }
+            reject
+        }
+    }
+}
+
+authenticate {
+    Auth-Type PAP {
+        pap
+    }
+    Auth-Type CHAP {
+        chap
+    }
+    Auth-Type MS-CHAP {
+        mschap
+    }
+    digest
+    eap
+}
+
+preacct {
+    preprocess
+    acct_unique
+    suffix
+    files
+}
+
+accounting {
+    detail
+    unix
+    -sql
+    exec
+    attr_filter.accounting_response
+}
+
+session {
+    sql
+}
+
+post-auth {
+    update {
+        &reply: += &session-state:
+    }
+    sql
+    exec
+    remove_reply_message_if_eap
+    Post-Auth-Type REJECT {
+        sql
+        attr_filter.access_reject
+        eap
+        remove_reply_message_if_eap
+    }
+    Post-Auth-Type Challenge {
+    }
+}
+
+pre-proxy {
+}
+
+post-proxy {
+    eap
+}
+
+}
