@@ -92,4 +92,21 @@ router.get('/auth-chart', async (req, res) => {
   }
 });
 
+// POST /api/dashboard/live-sessions/:radacctid/close — Force-close a live session (stale session management)
+router.post('/live-sessions/:radacctid/close', async (req, res) => {
+  try {
+    const { radacctid } = req.params;
+    await db('radacct')
+      .where({ radacctid })
+      .update({
+        acctstoptime: new Date(),
+        acctterminatecause: 'Admin-Reset'
+      });
+    res.json({ success: true, message: 'Session marked as closed' });
+  } catch (err) {
+    console.error('[dashboard/close-session]', err);
+    res.status(500).json({ error: 'Failed to close session' });
+  }
+});
+
 module.exports = router;

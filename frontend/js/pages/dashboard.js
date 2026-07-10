@@ -137,17 +137,21 @@ async function loadLiveSessions() {
     wrap.innerHTML = `
       <table style="font-size:12px;">
         <thead><tr>
-          <th>User</th><th>Client IP</th><th>Device IP</th><th>Status</th><th>Started</th>
+          <th>User</th><th>MAC Address</th><th>Client IP</th><th>Device IP</th><th>Status</th><th>Started</th><th style="text-align:right;">Action</th>
         </tr></thead>
         <tbody>${sessions.map(s => {
           const isActive = !s.acctstoptime;
           return `
           <tr>
             <td><code>${s.username}</code></td>
+            <td><code>${s.callingstationid || '—'}</code></td>
             <td><code>${s.framedipaddress || '—'}</code></td>
             <td><code>${s.nasipaddress}</code></td>
             <td><span class="badge ${isActive ? 'badge-green' : 'badge-gray'}">${isActive ? 'Active' : 'Closed'}</span></td>
             <td class="text-muted text-sm">${fmtDate(s.acctstarttime)}</td>
+            <td style="text-align:right;">
+              ${isActive ? `<button class="btn btn-ghost btn-sm btn-icon" onclick="forceCloseSession(${s.radacctid})" title="Force Close Session" style="color:var(--accent-red);padding:2px 4px;">✕ Close</button>` : '—'}
+            </td>
           </tr>`;
         }).join('')}
         </tbody>
@@ -238,3 +242,17 @@ async function loadAuthChart() {
     console.error('Chart error', err);
   }
 }
+
+async function forceCloseSession(radacctid) {
+  confirmDialog('Force close this active session? This will mark the session as disconnected in the database.', async () => {
+    try {
+      await API.post(`/dashboard/live-sessions/${radacctid}/close`, {});
+      toast('Session marked as closed', 'success');
+      loadLiveSessions();
+      loadDashStats();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
+}
+window.forceCloseSession = forceCloseSession;
