@@ -14,6 +14,9 @@ registerPage('users', {
           <span class="search-icon">🔍</span>
           <input type="text" id="users-search" placeholder="Search username, name, email..." oninput="usersOnSearch(this.value)">
         </div>
+        <select id="users-group-filter" class="form-select" style="width:180px;" onchange="loadUsers(1)">
+          <option value="">All Groups</option>
+        </select>
         <button class="btn btn-primary" onclick="openCreateUserModal()">＋ Add User</button>
       </div>
       <div class="card" style="padding:0;">
@@ -22,12 +25,30 @@ registerPage('users', {
       </div>
     </div>`,
   onload: async () => {
+    await loadGroupFilterOptions();
     loadUsers(1);
     // Topbar action
     document.getElementById('topbar-actions').innerHTML =
       `<button class="btn btn-ghost btn-sm" onclick="loadUsers(usersPage)">↻ Refresh</button>`;
   }
 });
+
+async function loadGroupFilterOptions() {
+  const select = document.getElementById('users-group-filter');
+  if (!select) return;
+  try {
+    const groups = await API.get('/groups');
+    select.innerHTML = '<option value="">All Groups</option>';
+    groups.forEach(g => {
+      const opt = document.createElement('option');
+      opt.value = g.groupname;
+      opt.textContent = g.groupname;
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    console.error('[users/loadGroupFilter]', err);
+  }
+}
 
 let usersSearchTimer;
 function usersOnSearch(val) {
@@ -41,10 +62,11 @@ async function loadUsers(page) {
   const wrap = document.getElementById('users-table-wrap');
   if (!wrap) return;
   wrap.innerHTML = renderLoading();
+  const groupVal = document.getElementById('users-group-filter')?.value || '';
   try {
-    const data = await API.get(`/users?page=${page}&limit=15&search=${encodeURIComponent(usersSearch)}`);
+    const data = await API.get(`/users?page=${page}&limit=15&search=${encodeURIComponent(usersSearch)}&group=${encodeURIComponent(groupVal)}`);
     if (!data.data.length) {
-      wrap.innerHTML = renderEmpty('👤', 'No users found', usersSearch ? 'Try a different search term' : 'Add your first RADIUS user',
+      wrap.innerHTML = renderEmpty('👤', 'No users found', usersSearch || groupVal ? 'Try a different search term or group' : 'Add your first RADIUS user',
         `<button class="btn btn-primary" onclick="openCreateUserModal()">＋ Add User</button>`);
       document.getElementById('users-pagination').innerHTML = '';
       return;

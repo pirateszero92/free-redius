@@ -13,6 +13,7 @@ router.get('/', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const search = req.query.search || '';
+    const group = req.query.group || '';
     const offset = (page - 1) * limit;
 
     let query = db('user_profiles');
@@ -22,6 +23,11 @@ router.get('/', async (req, res) => {
           .orWhere('user_profiles.full_name', 'ilike', `%${search}%`)
           .orWhere('user_profiles.email', 'ilike', `%${search}%`)
           .orWhere('user_profiles.department', 'ilike', `%${search}%`);
+      });
+    }
+    if (group) {
+      query = query.whereIn('user_profiles.username', function() {
+        this.select('username').from('radusergroup').where({ groupname: group });
       });
     }
 
