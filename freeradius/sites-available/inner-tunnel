@@ -19,6 +19,12 @@ authorize {
     }
     files
     sql
+    ldap
+    if ((ok || updated) && User-Password && !control:Auth-Type) {
+        update {
+            control:Auth-Type := ldap
+        }
+    }
     expiration
     logintime
     pap
@@ -33,6 +39,9 @@ authenticate {
     }
     Auth-Type MS-CHAP {
         mschap
+    }
+    Auth-Type LDAP {
+        ldap
     }
     eap
 }

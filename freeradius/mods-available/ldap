@@ -1,0 +1,31 @@
+# -*- text -*-
+ldap {
+	# Server configuration
+	server = '__LDAP_SERVER__'
+	port = __LDAP_PORT__
+	identity = '__LDAP_IDENTITY__'
+	password = '__LDAP_PASSWORD__'
+	base_dn = '__LDAP_BASE_DN__'
+
+	# User search configuration
+	user {
+		base_dn = '__LDAP_BASE_DN__'
+		filter = "(sAMAccountName=%{%{Stripped-User-Name}:-%{User-Name}})"
+	}
+
+	# Connection pool settings
+	pool {
+		start = 5
+		min = 4
+		max = 10
+		spare = 3
+		uses = 0
+		lifetime = 0
+		idle_timeout = 60
+	}
+
+	# Mapping of LDAP directory attributes
+	update {
+		control:Password-With-Header	+= 'userPassword'
+	}
+}

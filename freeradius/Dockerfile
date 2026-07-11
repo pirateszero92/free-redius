@@ -5,12 +5,15 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     freeradius-postgresql \
+    freeradius-ldap \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy custom configuration files
 COPY radiusd.conf /etc/freeradius/radiusd.conf
 COPY clients.conf /etc/freeradius/clients.conf
 COPY mods-available/sql /etc/freeradius/mods-available/sql
+COPY mods-available/ldap /etc/freeradius/mods-available/ldap
 COPY sites-available/default /etc/freeradius/sites-available/default
 COPY sites-available/inner-tunnel /etc/freeradius/sites-available/inner-tunnel
 
