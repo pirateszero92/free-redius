@@ -15,6 +15,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const aclRoutes = require('./routes/acl');
 const logsRoutes = require('./routes/logs');
 const reportsRoutes = require('./routes/reports');
+const devicesRoutes = require('./routes/devices');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,6 +48,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/acl', aclRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/devices', devicesRoutes);
 
 // 404
 app.use((req, res) => {
@@ -95,6 +97,25 @@ app.listen(PORT, async () => {
     }
   } catch (err) {
     console.error('[API] Failed to run schema migrations for admin_users:', err.message);
+  }
+
+  // Create device_registry table if not exists
+  try {
+    const db = require('./db/knex');
+    const hasDevicesTable = await db.schema.hasTable('device_registry');
+    if (!hasDevicesTable) {
+      await db.schema.createTable('device_registry', table => {
+        table.increments('id').primary();
+        table.string('mac_address', 50).notNullable().unique();
+        table.string('name', 128).notNullable();
+        table.string('description', 255);
+        table.integer('acl_profile_id').unsigned().references('id').inTable('acl_profiles').onDelete('SET NULL');
+        table.timestamps(true, true);
+      });
+      console.log('[API] Created device_registry table');
+    }
+  } catch (err) {
+    console.error('[API] Failed to create device_registry table:', err.message);
   }
 
   // Seed default admin user if not exists (atomic upsert — safe for concurrent startup)

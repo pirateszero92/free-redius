@@ -104,14 +104,24 @@ router.put('/:id', async (req, res) => {
 
     await db('acl_profiles').where({ id: req.params.id }).update(updates);
 
-    // Dynamic update: update radreply and radgroupreply for all users/groups using this profile
+    // Dynamic update: update radreply and radgroupreply for all users/groups/devices using this profile
     const updatedProfile = { id: req.params.id, ...updates };
     const newAttrs = getRadiusAttributesForAcl(updatedProfile);
 
     const users = await db('user_profiles').where({ acl_profile_id: req.params.id });
     const groups = await db('group_profiles').where({ acl_profile_id: req.params.id });
+    const devices = await db('device_registry').where({ acl_profile_id: req.params.id });
 
-    // Single transaction covers all users AND groups — no partial updates
+    // Local helper for MAC format generation to avoid circular dependency
+    function getMacFormats(mac) {
+      const clean = mac.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
+      const f1 = clean;
+      const f2 = clean.match(/.{1,2}/g).join(':');
+      const f3 = clean.match(/.{1,2}/g).join('-');
+      return [f1, f2, f3, f1.toUpperCase(), f2.toUpperCase(), f3.toUpperCase()];
+    }
+
+    // Single transaction covers all users, groups AND devices — no partial updates
     await db.transaction(async trx => {
       for (const u of users) {
         await trx('radreply')
@@ -125,6 +135,24 @@ router.put('/:id', async (req, res) => {
             op: attr.op,
             value: attr.value
           });
+        }
+      }
+
+      for (const d of devices) {
+        const formats = getMacFormats(d.mac_address);
+        await trx('radreply')
+          .whereIn('username', formats)
+          .whereIn('attribute', ['Tunnel-Type', 'Tunnel-Medium-Type', 'Tunnel-Private-Group-Id', 'Cisco-AVPair', 'Aruba-User-Role', 'Filter-Id'])
+          .delete();
+        for (const format of formats) {
+          for (const attr of newAttrs) {
+            await trx('radreply').insert({
+              username: format,
+              attribute: attr.attribute,
+              op: attr.op,
+              value: attr.value
+            });
+          }
         }
       }
 
