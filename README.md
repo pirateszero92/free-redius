@@ -38,10 +38,10 @@ sudo apt install -y realmd sssd sssd-tools samba-common-bin oddjob oddjob-mkhome
 ### 2. Discover and Join the Domain
 ```bash
 # Discover the AD Domain
-realm discover VSKAUTOPARTS.LOCAL
+realm discover YOURDOMAIN.LOCAL
 
 # Join the domain using domain administrator credentials
-sudo realm join -U Administrator VSKAUTOPARTS.LOCAL
+sudo realm join -U Administrator YOURDOMAIN.LOCAL
 ```
 
 ### 3. Verify AD Winbind Connection
