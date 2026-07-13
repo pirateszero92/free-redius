@@ -99,6 +99,9 @@ EOF
 # Symlink mods-enabled/ldap to enable it
 ln -sf "$FR_CONF/mods-available/ldap" "$FR_CONF/mods-enabled/ldap"
 
+# Enable use_tunneled_reply in EAP configuration to copy VLAN attributes to outer reply
+sed -i 's/use_tunneled_reply = no/use_tunneled_reply = yes/g' "$FR_CONF/mods-available/eap"
+
 # Ensure correct permissions on the log directory
 mkdir -p /var/log/freeradius
 chown -R freerad:freerad /var/log/freeradius
