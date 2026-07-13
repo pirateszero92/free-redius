@@ -40,6 +40,7 @@ services:
     volumes:
       - freeradius_logs:/var/log/freeradius
       - /var/lib/samba/winbindd_privileged:/var/lib/samba/winbindd_privileged
+      - /var/lib/samba/winbindd_privileged:/var/run/samba/winbindd_privileged
       - /etc/samba/smb.conf:/etc/samba/smb.conf:ro
 
   api:
