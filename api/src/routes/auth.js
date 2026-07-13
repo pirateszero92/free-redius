@@ -7,6 +7,46 @@ const db = require('../db/knex');
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
+const ldap = require('ldapjs');
+
+async function authenticateLdapUser(username, password) {
+  const settings = await db('ad_settings').where({ id: 1 }).first();
+  if (!settings || !settings.host || !settings.is_enabled) {
+    throw new Error('Active Directory is not enabled or configured');
+  }
+
+  const protocol = settings.use_ssl ? 'ldaps' : 'ldap';
+  const url = `${protocol}://${settings.host}:${settings.port}`;
+
+  const client = ldap.createClient({
+    url,
+    tlsOptions: settings.use_ssl ? { rejectUnauthorized: false } : undefined,
+    connectTimeout: 5000,
+    timeout: 5000,
+  });
+
+  // Try to resolve domain from base_dn (e.g. "DC=VSKAUTOPARTS,DC=LOCAL" -> "vskautoparts.local")
+  const domainParts = settings.base_dn
+    ? settings.base_dn
+        .split(',')
+        .filter(p => p.trim().toLowerCase().startsWith('dc='))
+        .map(p => p.trim().split('=')[1])
+    : [];
+  const domainName = domainParts.join('.');
+  const bindUser = domainName ? `${username}@${domainName}` : username;
+
+  return new Promise((resolve, reject) => {
+    client.bind(bindUser, password, (err) => {
+      try { client.unbind(); } catch (_) {}
+      if (err) {
+        reject(err);
+      } else {
+        resolve(true);
+      }
+    });
+  });
+}
+
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
@@ -23,7 +63,19 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const valid = await bcrypt.compare(password, user.password);
+    let valid = false;
+    if (user.source === 'ad') {
+      try {
+        await authenticateLdapUser(username, password);
+        valid = true;
+      } catch (err) {
+        console.error(`[auth/login] AD authentication failed for "${username}":`, err.message);
+        return res.status(401).json({ error: 'Invalid Active Directory credentials' });
+      }
+    } else {
+      valid = await bcrypt.compare(password, user.password);
+    }
+
     if (!valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }

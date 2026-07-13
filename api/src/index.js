@@ -83,6 +83,20 @@ app.listen(PORT, async () => {
       await new Promise(r => setTimeout(r, 3000));
     }
   }
+  // Alter table schema if needed to support AD source admins
+  try {
+    const db = require('./db/knex');
+    const hasSourceCol = await db.schema.hasColumn('admin_users', 'source');
+    if (!hasSourceCol) {
+      await db.schema.alterTable('admin_users', table => {
+        table.string('source', 20).notNullable().defaultTo('local');
+      });
+      console.log('[API] Added source column to admin_users table');
+    }
+  } catch (err) {
+    console.error('[API] Failed to run schema migrations for admin_users:', err.message);
+  }
+
   // Seed default admin user if not exists (atomic upsert — safe for concurrent startup)
   try {
     const db = require('./db/knex');

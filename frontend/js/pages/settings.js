@@ -372,7 +372,7 @@ async function renderAdminsTab() {
   try {
     const users = await API.get('/settings/admin-users');
     el.innerHTML = `
-      <div class="card" style="max-width:800px;">
+      <div class="card" style="max-width:850px;">
         <div class="card-header">
           <span class="card-title">👤 Admin Users</span>
           <button class="btn btn-primary btn-sm" onclick="openCreateAdminModal()">＋ Add Admin</button>
@@ -380,7 +380,7 @@ async function renderAdminsTab() {
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>Username</th><th>Full Name</th><th>Email</th><th>Role</th>
+              <th>Username</th><th>Full Name</th><th>Email</th><th>Auth Source</th><th>Role</th>
               <th>Last Login</th><th style="text-align:right;">Actions</th>
             </tr></thead>
             <tbody>${users.map(u => `
@@ -388,6 +388,7 @@ async function renderAdminsTab() {
                 <td><code>${u.username}</code></td>
                 <td>${u.full_name || '<span class="text-muted">—</span>'}</td>
                 <td>${u.email || '<span class="text-muted">—</span>'}</td>
+                <td><span class="badge ${u.source === 'ad' ? 'badge-blue' : 'badge-gray'}">${u.source === 'ad' ? 'Active Directory' : 'Local'}</span></td>
                 <td><span class="badge ${u.role === 'superadmin' ? 'badge-purple' : 'badge-blue'}">${u.role}</span></td>
                 <td class="text-muted text-sm">${fmtDate(u.last_login)}</td>
                 <td style="text-align:right;">
@@ -405,14 +406,32 @@ async function renderAdminsTab() {
   }
 }
 
+window.toggleAdminSource = function(val) {
+  const passGroup = document.getElementById('ac-pass-group');
+  const passInput = document.getElementById('ac-pass');
+  if (val === 'ad') {
+    passGroup.style.display = 'none';
+    passInput.value = '';
+  } else {
+    passGroup.style.display = 'block';
+  }
+};
+
 function openCreateAdminModal() {
   createModal('admin-create-modal', '＋ Add Admin User',
-    `<div class="form-row">
+    `<div class="form-group" style="margin-bottom:15px;">
+      <label class="form-label">Authentication Source</label>
+      <select id="ac-source" class="form-select" onchange="toggleAdminSource(this.value)">
+        <option value="local">Local Account</option>
+        <option value="ad">Active Directory (AD)</option>
+      </select>
+    </div>
+    <div class="form-row">
       <div class="form-group">
         <label class="form-label">Username *</label>
         <input id="ac-user" class="form-input" placeholder="admin username">
       </div>
-      <div class="form-group">
+      <div class="form-group" id="ac-pass-group">
         <label class="form-label">Password *</label>
         <input id="ac-pass" type="password" class="form-input" placeholder="Strong password">
       </div>
@@ -442,11 +461,14 @@ function openCreateAdminModal() {
 
 async function submitCreateAdmin() {
   const username = document.getElementById('ac-user').value.trim();
+  const source = document.getElementById('ac-source').value;
   const password = document.getElementById('ac-pass').value;
-  if (!username || !password) return toast('Username and password required', 'error');
+  if (!username) return toast('Username is required', 'error');
+  if (source === 'local' && !password) return toast('Password is required for local accounts', 'error');
   try {
     await API.post('/settings/admin-users', {
-      username, password,
+      username, source,
+      password: source === 'local' ? password : '',
       full_name: document.getElementById('ac-name').value.trim(),
       email: document.getElementById('ac-email').value.trim(),
       role: document.getElementById('ac-role').value,

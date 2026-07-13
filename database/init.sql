@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
     full_name   VARCHAR(128),
     email       VARCHAR(128),
     role        VARCHAR(20) NOT NULL DEFAULT 'admin',
+    source      VARCHAR(20) NOT NULL DEFAULT 'local',
     is_active   BOOLEAN NOT NULL DEFAULT TRUE,
     last_login  TIMESTAMP,
     created_at  TIMESTAMP DEFAULT NOW(),

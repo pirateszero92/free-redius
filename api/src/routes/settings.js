@@ -112,7 +112,7 @@ router.put('/app', async (req, res) => {
 router.get('/admin-users', async (req, res) => {
   try {
     const users = await db('admin_users')
-      .select('id', 'username', 'full_name', 'email', 'role', 'is_active', 'last_login', 'created_at')
+      .select('id', 'username', 'full_name', 'email', 'role', 'is_active', 'source', 'last_login', 'created_at')
       .orderBy('username');
     res.json(users);
   } catch (err) {
@@ -123,20 +123,38 @@ router.get('/admin-users', async (req, res) => {
 // POST /api/settings/admin-users — Create admin user (superadmin only)
 router.post('/admin-users', requireRole('superadmin'), async (req, res) => {
   try {
-    const { username, password, full_name, email, role } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+    const { username, password, full_name, email, role, source } = req.body;
+    const isAD = source === 'ad';
+    
+    if (!username || (!isAD && !password)) {
+      return res.status(400).json({ error: 'username and password required' });
+    }
 
     const existing = await db('admin_users').where({ username }).first();
     if (existing) return res.status(409).json({ error: 'Username already exists' });
 
-    const hash = await bcrypt.hash(password, 10);
+    let hash = '';
+    if (isAD) {
+      const randomSecret = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      hash = await bcrypt.hash(randomSecret, 10);
+    } else {
+      hash = await bcrypt.hash(password, 10);
+    }
+
     await db('admin_users').insert({
-      username, password: hash, full_name, email,
-      role: role || 'admin', is_active: true,
-      created_at: new Date(), updated_at: new Date()
+      username,
+      password: hash,
+      full_name: full_name || '',
+      email: email || '',
+      role: role || 'admin',
+      source: source || 'local',
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date()
     });
     res.status(201).json({ message: 'Admin user created' });
   } catch (err) {
+    console.error('[settings/admin-users/create]', err);
     res.status(500).json({ error: 'Failed to create admin user' });
   }
 });
