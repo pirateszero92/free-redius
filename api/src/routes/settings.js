@@ -120,14 +120,29 @@ router.get('/admin-users', async (req, res) => {
   }
 });
 
+// GET /api/settings/eligible-admins — Get users that can be promoted to admin (superadmin only)
+router.get('/eligible-admins', requireRole('superadmin'), async (req, res) => {
+  try {
+    const existingAdmins = db('admin_users').select('username');
+    const users = await db('user_profiles')
+      .select('username', 'full_name', 'email', 'source')
+      .whereNotIn('username', existingAdmins)
+      .orderBy('username');
+    res.json(users);
+  } catch (err) {
+    console.error('[settings/eligible-admins]', err);
+    res.status(500).json({ error: 'Failed to fetch eligible users' });
+  }
+});
+
 // POST /api/settings/admin-users — Create admin user (superadmin only)
 router.post('/admin-users', requireRole('superadmin'), async (req, res) => {
   try {
     const { username, password, full_name, email, role, source } = req.body;
     const isAD = source === 'ad';
     
-    if (!username || (!isAD && !password)) {
-      return res.status(400).json({ error: 'username and password required' });
+    if (!username) {
+      return res.status(400).json({ error: 'username is required' });
     }
 
     const existing = await db('admin_users').where({ username }).first();
@@ -138,7 +153,19 @@ router.post('/admin-users', requireRole('superadmin'), async (req, res) => {
       const randomSecret = Math.random().toString(36).substring(2) + Date.now().toString(36);
       hash = await bcrypt.hash(randomSecret, 10);
     } else {
-      hash = await bcrypt.hash(password, 10);
+      let cleartextPass = password;
+      if (!cleartextPass) {
+        // Try to fetch from radcheck if they promoted an existing local user without specifying a new password
+        const radpass = await db('radcheck')
+          .where({ username, attribute: 'Cleartext-Password' })
+          .first();
+        if (radpass) {
+          cleartextPass = radpass.value;
+        } else {
+          return res.status(400).json({ error: 'Password is required for local account' });
+        }
+      }
+      hash = await bcrypt.hash(cleartextPass, 10);
     }
 
     await db('admin_users').insert({

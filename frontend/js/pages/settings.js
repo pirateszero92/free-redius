@@ -417,9 +417,47 @@ window.toggleAdminSource = function(val) {
   }
 };
 
-function openCreateAdminModal() {
+window.onAdminPromoteSelect = function(username) {
+  const select = document.getElementById('ac-promote-user');
+  if (!select) return;
+  const opt = select.options[select.selectedIndex];
+  if (!username) {
+    document.getElementById('ac-user').value = '';
+    document.getElementById('ac-name').value = '';
+    document.getElementById('ac-email').value = '';
+    document.getElementById('ac-source').value = 'local';
+    window.toggleAdminSource('local');
+    return;
+  }
+  
+  const name = opt.getAttribute('data-name') || '';
+  const email = opt.getAttribute('data-email') || '';
+  const source = opt.getAttribute('data-source') || 'local';
+  
+  document.getElementById('ac-user').value = username;
+  document.getElementById('ac-name').value = name;
+  document.getElementById('ac-email').value = email;
+  document.getElementById('ac-source').value = source;
+  window.toggleAdminSource(source);
+};
+
+async function openCreateAdminModal() {
+  let eligibleUsers = [];
+  try {
+    eligibleUsers = await API.get('/settings/eligible-admins');
+  } catch (err) {
+    console.error('Failed to load eligible users', err);
+  }
+
   createModal('admin-create-modal', '＋ Add Admin User',
-    `<div class="form-group" style="margin-bottom:15px;">
+    `<div class="form-group" style="margin-bottom:15px;border-bottom:1px solid var(--border);padding-bottom:15px;">
+      <label class="form-label">Promote Existing User (Auto-fill)</label>
+      <select id="ac-promote-user" class="form-select" onchange="onAdminPromoteSelect(this.value)">
+        <option value="">-- Select a synced AD or Local user --</option>
+        ${eligibleUsers.map(u => `<option value="${u.username}" data-name="${u.full_name || ''}" data-email="${u.email || ''}" data-source="${u.source}">${u.username} (${u.source.toUpperCase()})</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:15px;">
       <label class="form-label">Authentication Source</label>
       <select id="ac-source" class="form-select" onchange="toggleAdminSource(this.value)">
         <option value="local">Local Account</option>
@@ -434,6 +472,7 @@ function openCreateAdminModal() {
       <div class="form-group" id="ac-pass-group">
         <label class="form-label">Password *</label>
         <input id="ac-pass" type="password" class="form-input" placeholder="Strong password">
+        <div class="form-hint" style="margin-top:4px;">Leave blank to use user's existing RADIUS password.</div>
       </div>
     </div>
     <div class="form-row">
@@ -464,7 +503,9 @@ async function submitCreateAdmin() {
   const source = document.getElementById('ac-source').value;
   const password = document.getElementById('ac-pass').value;
   if (!username) return toast('Username is required', 'error');
-  if (source === 'local' && !password) return toast('Password is required for local accounts', 'error');
+  if (source === 'local' && !password && !document.getElementById('ac-promote-user').value) {
+    return toast('Password is required for local accounts', 'error');
+  }
   try {
     await API.post('/settings/admin-users', {
       username, source,
