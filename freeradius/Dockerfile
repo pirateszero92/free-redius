@@ -1,13 +1,19 @@
-FROM freeradius/freeradius-server:latest
+FROM ubuntu:24.04
 
-# Install PostgreSQL client library for rlm_sql_postgresql
-USER root
+# Avoid prompt during installations
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install FreeRADIUS, LDAP, PostgreSQL, Winbind and build tools (matching host Ubuntu 24.04 versions!)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev \
+    freeradius \
     freeradius-postgresql \
     freeradius-ldap \
+    freeradius-utils \
     postgresql-client \
     winbind \
+    libpq-dev \
+    make \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Modify existing winbindd_priv group GID to match host GID 986 and add freerad user
@@ -25,6 +31,9 @@ COPY sites-available/inner-tunnel /etc/freeradius/sites-available/inner-tunnel
 # Enable SQL and MSCHAP modules (create symlinks)
 RUN ln -sf /etc/freeradius/mods-available/sql /etc/freeradius/mods-enabled/sql \
     && ln -sf /etc/freeradius/mods-available/mschap /etc/freeradius/mods-enabled/mschap
+
+# Generate default self-signed certificates if they don't exist
+RUN make -C /etc/freeradius/certs || true
 
 # Copy entrypoint script that substitutes env vars
 COPY docker-entrypoint.sh /docker-entrypoint.sh
