@@ -104,6 +104,18 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Always ensure Fall-Through := Yes is present in radgroupreply
+    const hasFallthrough = await trx('radgroupreply').where({ groupname, attribute: 'Fall-Through' }).first();
+    if (!hasFallthrough) {
+      await trx('radgroupreply').insert({
+        groupname,
+        attribute: 'Fall-Through',
+        op: ':=',
+        value: 'Yes'
+      });
+    }
+
+
     await trx.commit();
     res.status(201).json({ message: 'Group created', groupname });
   } catch (err) {
@@ -163,6 +175,17 @@ router.put('/:groupname', async (req, res) => {
             });
           }
         }
+      }
+
+      // Always ensure Fall-Through := Yes is present in radgroupreply
+      const hasFallthrough = await trx('radgroupreply').where({ groupname, attribute: 'Fall-Through' }).first();
+      if (!hasFallthrough) {
+        await trx('radgroupreply').insert({
+          groupname,
+          attribute: 'Fall-Through',
+          op: ':=',
+          value: 'Yes'
+        });
       }
     }
 

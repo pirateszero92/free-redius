@@ -141,6 +141,15 @@ router.put('/:id', async (req, res) => {
             value: attr.value
           });
         }
+        const hasFallthrough = await trx('radgroupreply').where({ groupname: g.groupname, attribute: 'Fall-Through' }).first();
+        if (!hasFallthrough) {
+          await trx('radgroupreply').insert({
+            groupname: g.groupname,
+            attribute: 'Fall-Through',
+            op: ':=',
+            value: 'Yes'
+          });
+        }
       }
     });
 
