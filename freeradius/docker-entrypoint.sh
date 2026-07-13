@@ -3,7 +3,16 @@ set -e
 
 # Substitute environment variables in SQL module config
 # Replace placeholders with actual env var values
-SQL_CONF="/etc/freeradius/mods-available/sql"
+# Detect config dir dynamically (support both source-built and package-installed layouts)
+if [ -d "/etc/freeradius/3.0" ]; then
+    FR_CONF="/etc/freeradius/3.0"
+else
+    FR_CONF="/etc/freeradius"
+fi
+
+# Substitute environment variables in SQL module config
+# Replace placeholders with actual env var values
+SQL_CONF="$FR_CONF/mods-available/sql"
 
 sed -i "s|\${POSTGRES_HOST}|${POSTGRES_HOST:-postgres}|g" "$SQL_CONF"
 sed -i "s|\${POSTGRES_USER}|${POSTGRES_USER:-radius}|g" "$SQL_CONF"
@@ -57,7 +66,7 @@ echo "  LDAP Bind DN: ${AD_BIND_DN}"
 echo "  LDAP Base DN: ${AD_BASE_DN}"
 
 # Generate ldap config file
-cat <<EOF > /etc/freeradius/mods-available/ldap
+cat <<EOF > "$FR_CONF/mods-available/ldap"
 # -*- text -*-
 ldap {
 	server = '${LDAP_SERVER}'
@@ -88,6 +97,6 @@ ldap {
 EOF
 
 # Symlink mods-enabled/ldap to enable it
-ln -sf /etc/freeradius/mods-available/ldap /etc/freeradius/mods-enabled/ldap
+ln -sf "$FR_CONF/mods-available/ldap" "$FR_CONF/mods-enabled/ldap"
 
 exec "$@"
