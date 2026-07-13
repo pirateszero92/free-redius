@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     winbind \
     && rm -rf /var/lib/apt/lists/*
 
-# Add winbindd_priv group with host GID 986 and add freerad user to it
-RUN groupadd -g 986 winbindd_priv || true && usermod -a -G winbindd_priv freerad || true
+# Modify existing winbindd_priv group GID to match host GID 986 and add freerad user
+RUN groupmod -g 986 winbindd_priv || true && usermod -a -G winbindd_priv freerad || true
 
 # Copy custom configuration files
 COPY radiusd.conf /etc/freeradius/radiusd.conf
