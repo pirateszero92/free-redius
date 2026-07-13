@@ -39,6 +39,7 @@ services:
       - radius-net
     volumes:
       - freeradius_logs:/var/log/freeradius
+      - /var/lib/samba/winbindd_privileged:/var/lib/samba/winbindd_privileged
 
   api:
     build:

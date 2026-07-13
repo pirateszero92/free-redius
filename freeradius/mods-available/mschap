@@ -1,0 +1,11 @@
+# -*- text -*-
+# Microsoft CHAP authentication with Active Directory / Winbind support
+mschap {
+	# MPPE settings for MS-CHAPv2 Wi-Fi encryption keys
+	use_mppe = yes
+	require_encryption = yes
+	require_strong = yes
+
+	# Point to the ntlm_auth helper inside the container (winbind package)
+	ntlm_auth = "/usr/bin/ntlm_auth --request-nt-key --allow-mschapv2 --username=%{%{Stripped-User-Name}:-%{%{User-Name}:-None}} --challenge=%{%{mschap:Challenge}:-00} --nt-response=%{%{mschap:NT-Response}:-00}"
+}
