@@ -49,7 +49,7 @@ router.get('/live-sessions', async (req, res) => {
     const minutes = Math.min(Math.max(1, parseInt(req.query.minutes) || 5), 1440);
 
     let query = db('radacct')
-      .leftJoin('nas', db.raw('radacct.nasipaddress::text'), '=', 'nas.nasname')
+      .leftJoin('nas', db.raw('HOST(radacct.nasipaddress)'), '=', 'nas.nasname')
       .select(
         'radacct.*',
         'nas.shortname as nas_name'
