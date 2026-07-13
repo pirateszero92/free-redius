@@ -42,7 +42,7 @@ router.get('/', async (req, res) => {
     // Get group memberships
     const usernames = users.map(u => u.username);
     const groups = usernames.length
-      ? await db('radusergroup').whereIn('username', usernames)
+      ? await db('radusergroup').whereIn('username', usernames).orderBy('groupname', 'asc')
       : [];
 
     const groupMap = {};
@@ -82,7 +82,7 @@ router.get('/:username', async (req, res) => {
 
     const radcheck = await db('radcheck').where({ username });
     const radreply = await db('radreply').where({ username });
-    const groups = await db('radusergroup').where({ username });
+    const groups = await db('radusergroup').where({ username }).orderBy('groupname', 'asc');
 
     res.json({ ...profile, radcheck, radreply, groups });
   } catch (err) {
