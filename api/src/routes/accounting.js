@@ -13,9 +13,14 @@ router.get('/sessions', async (req, res) => {
     const offset = (page - 1) * limit;
     const { username, nas, status } = req.query;
 
-    let query = db('radacct as s');
+    let query = db('radacct as s')
+      .leftJoin('nas', db.raw('HOST(s.nasipaddress)'), '=', 'nas.nasname');
+
     if (username) query = query.where('s.username', 'ilike', `%${username}%`);
-    if (nas) query = query.whereRaw(`s.nasipaddress::text ILIKE ?`, [`%${nas}%`]);
+    if (nas) query = query.where(function() {
+      this.whereRaw(`s.nasipaddress::text ILIKE ?`, [`%${nas}%`])
+        .orWhere('nas.shortname', 'ilike', `%${nas}%`);
+    });
     if (status === 'active') query = query.whereNull('s.acctstoptime');
     if (status === 'stopped') query = query.whereNotNull('s.acctstoptime');
 
@@ -23,6 +28,7 @@ router.get('/sessions', async (req, res) => {
     const sessions = await query
       .select(
         's.*',
+        'nas.shortname as nas_name',
         db.raw("(SELECT split_part(replace(username, 'host/', ''), '.', 1) FROM radacct WHERE callingstationid = s.callingstationid AND username ILIKE 'host/%' ORDER BY acctstarttime DESC LIMIT 1) as device_name")
       )
       .orderBy('s.acctstarttime', 'desc')
