@@ -151,7 +151,7 @@ async function loadLiveSessions() {
             <td><span class="badge ${isActive ? 'badge-green' : 'badge-gray'}">${isActive ? 'Active' : 'Closed'}</span></td>
             <td class="text-muted text-sm">${fmtDate(s.acctstarttime)}</td>
             <td style="text-align:right;">
-              ${isActive ? `<button class="btn btn-ghost btn-sm btn-icon" onclick="forceCloseSession(${s.radacctid})" title="Force Close Session" style="color:var(--accent-red);padding:2px 4px;">✕ Close</button>` : '—'}
+              ${isActive ? `<button class="btn btn-ghost btn-sm" onclick="forceCloseSession(${s.radacctid})" title="Force Close Session" style="color:var(--accent-red);border:none;background:none;padding:2px 8px;font-weight:500;">✕ Close</button>` : '—'}
             </td>
           </tr>`;
         }).join('')}
@@ -230,15 +230,16 @@ async function loadAuthChart() {
       }
     });
 
-    // Legend
+    // Legend (Top Right to prevent overlap with bottom time labels)
+    const legendY = 12;
     ctx.fillStyle = 'rgba(52,211,153,0.8)';
-    ctx.fillRect(pad.left, H - 14, 10, 8);
+    ctx.fillRect(W - pad.right - 130, legendY - 6, 10, 8);
     ctx.fillStyle = '#8a9bb8'; ctx.font = '10px Inter'; ctx.textAlign = 'left';
-    ctx.fillText('Accept', pad.left + 14, H - 7);
+    ctx.fillText('Accept', W - pad.right - 116, legendY + 1);
     ctx.fillStyle = 'rgba(247,92,92,0.8)';
-    ctx.fillRect(pad.left + 70, H - 14, 10, 8);
+    ctx.fillRect(W - pad.right - 65, legendY - 6, 10, 8);
     ctx.fillStyle = '#8a9bb8';
-    ctx.fillText('Reject', pad.left + 84, H - 7);
+    ctx.fillText('Reject', W - pad.right - 51, legendY + 1);
   } catch (err) {
     console.error('Chart error', err);
   }
