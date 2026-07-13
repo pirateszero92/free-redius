@@ -176,16 +176,6 @@ async function runAdSync(selectedGroupsOverride = null) {
           });
         }
 
-        // Ensure radcheck entry exists
-        const hasCheck = await db('radcheck').where({ username, attribute: 'Auth-Type' }).first();
-        if (!hasCheck) {
-          await db('radcheck').insert({
-            username,
-            attribute: 'Auth-Type',
-            op: ':=',
-            value: 'LDAP'
-          });
-        }
 
         // Sync group memberships
         const memberOf = Array.isArray(entry.memberOf)
