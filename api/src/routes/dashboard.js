@@ -49,21 +49,27 @@ router.get('/live-sessions', async (req, res) => {
     const minutes = Math.min(Math.max(1, parseInt(req.query.minutes) || 5), 1440);
 
     let query = db('radacct')
+      .leftJoin('nas', db.raw('radacct.nasipaddress::text'), '=', 'nas.nasname')
+      .select(
+        'radacct.*',
+        'nas.shortname as nas_name'
+      )
       .where(function () {
-        this.whereNull('acctstoptime')
-          .orWhere('acctstoptime', '>=', db.raw(`NOW() - INTERVAL '${minutes} minutes'`));
+        this.whereNull('radacct.acctstoptime')
+          .orWhere('radacct.acctstoptime', '>=', db.raw(`NOW() - INTERVAL '${minutes} minutes'`));
       });
 
     if (search) {
       query = query.where(function () {
-        this.where('username', 'ilike', `%${search}%`)
-          .orWhere(db.raw('framedipaddress::text'), 'ilike', `%${search}%`)
-          .orWhere(db.raw('nasipaddress::text'), 'ilike', `%${search}%`);
+        this.where('radacct.username', 'ilike', `%${search}%`)
+          .orWhere(db.raw('radacct.framedipaddress::text'), 'ilike', `%${search}%`)
+          .orWhere(db.raw('radacct.nasipaddress::text'), 'ilike', `%${search}%`)
+          .orWhere('nas.shortname', 'ilike', `%${search}%`);
       });
     }
 
     const sessions = await query
-      .orderBy('acctstarttime', 'desc')
+      .orderBy('radacct.acctstarttime', 'desc')
       .limit(50);
 
     res.json(sessions);

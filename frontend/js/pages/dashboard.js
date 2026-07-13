@@ -137,7 +137,7 @@ async function loadLiveSessions() {
     wrap.innerHTML = `
       <table style="font-size:12px;">
         <thead><tr>
-          <th>User</th><th>MAC Address</th><th>Client IP</th><th>Device IP</th><th>Status</th><th>Started</th><th style="text-align:right;">Action</th>
+          <th>User</th><th>MAC Address</th><th>Client IP</th><th>Device Name</th><th>Device IP</th><th>Status</th><th>Started</th><th style="text-align:right;">Action</th>
         </tr></thead>
         <tbody>${sessions.map(s => {
           const isActive = !s.acctstoptime;
@@ -146,6 +146,7 @@ async function loadLiveSessions() {
             <td><code>${s.username}</code></td>
             <td><code>${s.callingstationid || '—'}</code></td>
             <td><code>${s.framedipaddress || '—'}</code></td>
+            <td><code>${s.nas_name || '—'}</code></td>
             <td><code>${s.nasipaddress}</code></td>
             <td><span class="badge ${isActive ? 'badge-green' : 'badge-gray'}">${isActive ? 'Active' : 'Closed'}</span></td>
             <td class="text-muted text-sm">${fmtDate(s.acctstarttime)}</td>
