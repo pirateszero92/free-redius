@@ -99,4 +99,8 @@ EOF
 # Symlink mods-enabled/ldap to enable it
 ln -sf "$FR_CONF/mods-available/ldap" "$FR_CONF/mods-enabled/ldap"
 
+# Ensure correct permissions on the log directory
+mkdir -p /var/log/freeradius
+chown -R freerad:freerad /var/log/freeradius
+
 exec "$@"
