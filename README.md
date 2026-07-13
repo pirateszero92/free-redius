@@ -4,6 +4,93 @@ An enterprise-grade, dockerized FreeRADIUS management system with web-based admi
 
 ---
 
+## 🖼️ Web Portal Screenshots
+
+<p align="center">
+  <img src="docs/images/dashboard.png" width="48%" alt="Dashboard" />
+  <img src="docs/images/devices_list.png" width="48%" alt="Device Registry" />
+</p>
+<p align="center">
+  <img src="docs/images/system_logs.png" width="48%" alt="System Logs Search" />
+  <img src="docs/images/admin_users.png" width="48%" alt="Admin Users" />
+</p>
+<p align="center">
+  <img src="docs/images/settings_ad.png" width="48%" alt="Active Directory Sync settings" />
+</p>
+
+---
+
+## ⛓️ System Architecture & Workflow Diagrams
+
+### 1. Active Directory authentication via EAP-PEAP / MS-CHAPv2
+This sequence diagram shows how a Wi-Fi client authenticates against Active Directory through FreeRADIUS and Samba Winbind.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Wi-Fi Client (Employee)
+    participant AP as Access Point (NAS)
+    participant FR as FreeRADIUS Server (Docker)
+    participant WB as Samba Winbind (Host)
+    participant DC as Active Directory DC (Windows Server)
+
+    User->>AP: Connects using EAP-PEAP / MS-CHAPv2
+    AP->>FR: RADIUS Access-Request (Tunnel Identity)
+    Note over FR: Establish TLS Tunnel (EAP-PEAP)
+    FR->>WB: Authenticate Outer/Inner identity via Winbind socket
+    WB->>DC: NT Challenge-Response check (Netlogon)
+    DC-->>WB: Challenge-Response Success
+    WB-->>FR: Winbind Success
+    Note over FR: Map AD User Groups -> RADIUS VLAN attributes
+    FR-->>AP: RADIUS Access-Accept + VLAN ID (e.g. VLAN 250)
+    AP-->>User: Connected (Dynamic IP in VLAN 250)
+```
+
+### 2. MAC Authentication Bypass (MAB) for IoT Devices
+This flow shows how devices lacking EAP support (e.g. printers, IP cameras) get authenticated and mapped to their respective VLANs.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Device as IoT Device (Printer/IP Camera)
+    participant AP as Switch / Access Point (NAS)
+    participant FR as FreeRADIUS Server (Docker)
+    participant DB as PostgreSQL Database
+
+    Device->>AP: Connects to Network Port
+    AP->>FR: RADIUS Access-Request (User-Name/Password = MAC Address)
+    FR->>DB: Check MAC Address in 'radcheck' (6 normalized formats)
+    DB-->>FR: Match found (Cleartext-Password match)
+    FR->>DB: Fetch dynamic VLAN reply attributes from 'radreply'
+    DB-->>FR: VLAN Profile (e.g., VLAN 252)
+    FR-->>AP: RADIUS Access-Accept + VLAN ID (e.g. 252)
+    AP-->>Device: Port Authorized (IP in VLAN 252)
+```
+
+### 3. Active Directory User and Group Synchronization
+The background sync daemon regularly queries Active Directory and maintains local cache in PostgreSQL database to keep users and groups aligned.
+
+```mermaid
+flowchart TD
+    subgraph Active Directory Domain
+        AD[Active Directory Server]
+    end
+
+    subgraph FreeRADIUS Manager Server
+        API[Node.js API Sync Scheduler]
+        DB[(PostgreSQL Database)]
+        FR[FreeRADIUS Server]
+    end
+
+    API -- Query LDAP (Every 1m) --> AD
+    AD -- Return Users, Groups & Memberships --> API
+    API -- Sync and Upsert User Profiles --> DB
+    API -- Map AD Groups to radusergroup --> DB
+    FR -- Query Users & ACL Profile Replies --> DB
+```
+
+---
+
 ## 🌟 Key Features
 
 *   **Enterprise AD Sync**: Real-time background cron job to sync users, groups, and department mappings from Active Directory.
