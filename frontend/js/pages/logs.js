@@ -35,6 +35,14 @@ registerPage('logs', {
           <span>🔄</span> Refresh
         </button>
 
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="text-sm text-secondary">Search:</span>
+          <div class="search-box" style="margin:0;width:220px;">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="logs-search" placeholder="Search in logs..." style="width:100%;height:32px;padding-left:32px;font-size:13px;" oninput="onLogsSearchInput()">
+          </div>
+        </div>
+
         <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
           <label class="toggle">
             <input type="checkbox" id="logs-autorefresh" onchange="toggleLogsAutoRefresh(this.checked)" checked>
@@ -92,17 +100,24 @@ function clearLogsTerminal() {
   if (term) term.textContent = '';
 }
 
+function onLogsSearchInput() {
+  fetchLogs();
+}
+
 async function fetchLogs() {
   const term = document.getElementById('logs-terminal');
   if (!term) return;
   
+  const searchEl = document.getElementById('logs-search');
+  const search = searchEl ? searchEl.value : '';
+  
   try {
-    const data = await API.get(`/logs?service=${logsService}&lines=${logsLines}`);
+    const data = await API.get(`/logs?service=${logsService}&lines=${logsLines}&search=${encodeURIComponent(search)}`);
     
     // Check if terminal is currently scrolled to the bottom before replacing content
     const isAtBottom = term.scrollHeight - term.clientHeight <= term.scrollTop + 50;
 
-    term.textContent = data.logs || '--- No logs found ---';
+    term.textContent = data.logs || '--- No matching logs found ---';
 
     // Auto-scroll to bottom if they were already at the bottom
     if (isAtBottom) {

@@ -60,6 +60,7 @@ router.get('/', async (req, res) => {
   try {
     const service = req.query.service || 'freeradius';
     const lines = Math.min(Math.max(1, parseInt(req.query.lines) || 150), 5000);
+    const search = req.query.search || '';
 
     let containerName = 'freeradius-server';
     if (service === 'api') {
@@ -70,7 +71,16 @@ router.get('/', async (req, res) => {
       containerName = 'freeradius-postgres';
     }
 
-    const logOutput = await getContainerLogs(containerName, lines);
+    let logOutput = await getContainerLogs(containerName, lines);
+
+    if (search) {
+      const searchLower = search.toLowerCase();
+      logOutput = logOutput
+        .split('\n')
+        .filter(line => line.toLowerCase().includes(searchLower))
+        .join('\n');
+    }
+
     res.json({ service, containerName, logs: logOutput });
   } catch (err) {
     console.error('[logs/fetch]', err);
