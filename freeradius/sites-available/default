@@ -49,11 +49,13 @@ authorize {
         ok = return
     }
     files
-    sql
-    ldap
-    if ((ok || updated) && User-Password && !control:Auth-Type) {
-        update {
-            control:Auth-Type := ldap
+    if (!EAP-Message) {
+        sql
+        ldap
+        if ((ok || updated) && User-Password && !control:Auth-Type) {
+            update {
+                control:Auth-Type := ldap
+            }
         }
     }
     expiration
