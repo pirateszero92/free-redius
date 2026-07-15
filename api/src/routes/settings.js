@@ -199,4 +199,60 @@ router.delete('/admin-users/:id', requireRole('superadmin'), async (req, res) =>
   }
 });
 
+// GET /api/settings/guest — Get Guest Portal Settings
+router.get('/guest', async (req, res) => {
+  try {
+    const settings = await db('guest_settings').where({ id: 1 }).first();
+    if (!settings) {
+      return res.status(404).json({ error: 'Guest Portal settings not found' });
+    }
+    // Mask password & secrets
+    if (settings.unifi_password) settings.unifi_password = '••••••••';
+    if (settings.google_client_secret) settings.google_client_secret = '••••••••';
+    if (settings.github_client_secret) settings.github_client_secret = '••••••••';
+    if (settings.line_client_secret) settings.line_client_secret = '••••••••';
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch guest settings' });
+  }
+});
+
+// POST /api/settings/guest — Update Guest Portal Settings
+router.post('/guest', requireRole('superadmin'), async (req, res) => {
+  try {
+    const data = req.body;
+    
+    if (data.unifi_password === '••••••••') delete data.unifi_password;
+    if (data.google_client_secret === '••••••••') delete data.google_client_secret;
+    if (data.github_client_secret === '••••••••') delete data.github_client_secret;
+    if (data.line_client_secret === '••••••••') delete data.line_client_secret;
+
+    const updates = {
+      unifi_url: data.unifi_url || '',
+      unifi_username: data.unifi_username || '',
+      unifi_site: data.unifi_site || 'default',
+      unifi_verify_ssl: !!data.unifi_verify_ssl,
+      session_duration_mins: parseInt(data.session_duration_mins) || 120,
+      google_client_id: data.google_client_id || '',
+      google_enabled: !!data.google_enabled,
+      github_client_id: data.github_client_id || '',
+      github_enabled: !!data.github_enabled,
+      line_client_id: data.line_client_id || '',
+      line_enabled: !!data.line_enabled,
+      updated_at: new Date()
+    };
+
+    if (data.unifi_password !== undefined) updates.unifi_password = data.unifi_password;
+    if (data.google_client_secret !== undefined) updates.google_client_secret = data.google_client_secret;
+    if (data.github_client_secret !== undefined) updates.github_client_secret = data.github_client_secret;
+    if (data.line_client_secret !== undefined) updates.line_client_secret = data.line_client_secret;
+
+    await db('guest_settings').where({ id: 1 }).update(updates);
+    res.json({ message: 'Guest Portal settings updated' });
+  } catch (err) {
+    console.error('[settings/guest/update]', err);
+    res.status(500).json({ error: 'Failed to update guest settings' });
+  }
+});
+
 module.exports = router;

@@ -249,3 +249,53 @@ INSERT INTO acl_profiles (name, description, vendor, acl_type, value) VALUES
   ('Aruba Admin Role', 'Assigns Employee-Role on Aruba network', 'aruba', 'role', 'Employee-Role')
 ON CONFLICT (name) DO NOTHING;
 
+-- -------------------------------------------------------
+-- Guest Captive Portal Tables
+-- -------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS guest_users (
+    id            SERIAL PRIMARY KEY,
+    mac_address   VARCHAR(20) NOT NULL,
+    provider      VARCHAR(50) NOT NULL, -- 'google', 'github', 'apple', 'line', 'local'
+    social_id     VARCHAR(255) NOT NULL,
+    email         VARCHAR(255),
+    name          VARCHAR(255),
+    created_at    TIMESTAMP DEFAULT NOW(),
+    updated_at    TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS guest_sessions (
+    id            SERIAL PRIMARY KEY,
+    mac_address   VARCHAR(20) NOT NULL,
+    ap_mac        VARCHAR(20),
+    ssid          VARCHAR(128),
+    authorized_at TIMESTAMP DEFAULT NOW(),
+    expires_at    TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS guest_settings (
+    id                   SERIAL PRIMARY KEY,
+    unifi_url            VARCHAR(255),
+    unifi_username       VARCHAR(128),
+    unifi_password       VARCHAR(255),
+    unifi_site           VARCHAR(128) DEFAULT 'default',
+    unifi_verify_ssl     BOOLEAN DEFAULT FALSE,
+    session_duration_mins INTEGER DEFAULT 120,
+    google_client_id     VARCHAR(255),
+    google_client_secret VARCHAR(255),
+    google_enabled       BOOLEAN DEFAULT FALSE,
+    github_client_id     VARCHAR(255),
+    github_client_secret VARCHAR(255),
+    github_enabled       BOOLEAN DEFAULT FALSE,
+    line_client_id       VARCHAR(255),
+    line_client_secret   VARCHAR(255),
+    line_enabled         BOOLEAN DEFAULT FALSE,
+    created_at           TIMESTAMP DEFAULT NOW(),
+    updated_at           TIMESTAMP DEFAULT NOW()
+);
+
+INSERT INTO guest_settings (id, unifi_site, unifi_verify_ssl, session_duration_mins, google_enabled, github_enabled, line_enabled)
+VALUES (1, 'default', FALSE, 120, FALSE, FALSE, FALSE)
+ON CONFLICT (id) DO NOTHING;
+
+

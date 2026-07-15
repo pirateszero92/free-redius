@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guest Wi-Fi Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --card-bg: rgba(255, 255, 255, 0.04);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --input-bg: rgba(15, 23, 42, 0.6);
+      --input-border: rgba(255, 255, 255, 0.1);
+      --input-focus: #3b82f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 50% 0%, #1e293b 0%, var(--bg) 70%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    .background-glow {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+      top: -100px;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .portal-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      width: 100%;
+      max-width: 420px;
+      border-radius: 24px;
+      padding: 40px 32px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      z-index: 10;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .logo-icon {
+      font-size: 50px;
+      margin-bottom: 12px;
+      display: inline-block;
+      animation: pulse 3s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .ssid-badge {
+      display: inline-block;
+      font-size: 13px;
+      background: rgba(37, 99, 235, 0.15);
+      color: #60a5fa;
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-weight: 500;
+      margin-top: 6px;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .social-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .btn-social {
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 500;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: transform 0.2s, filter 0.2s;
+      text-decoration: none;
+      color: white;
+    }
+
+    .btn-social:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.1);
+    }
+
+    .btn-google {
+      background: #ea4335;
+    }
+
+    .btn-line {
+      background: #06c755;
+    }
+
+    .btn-github {
+      background: #24292e;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      margin: 24px 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .divider:not(:empty)::before {
+      margin-right: 15px;
+    }
+
+    .divider:not(:empty)::after {
+      margin-left: 15px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 15px;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus {
+      border-color: var(--input-focus);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .btn-submit {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      color: white;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin-top: 10px;
+      font-family: inherit;
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    /* Loader */
+    .loader-wrap {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s ease-in-out infinite;
+      display: inline-block;
+      margin-bottom: 15px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-msg {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="background-glow"></div>
+
+  <div class="portal-card">
+    <div class="header">
+      <span class="logo-icon">📶</span>
+      <h1>Welcome to Wi-Fi</h1>
+      <div class="ssid-badge" id="ssid-badge">Guest Network</div>
+    </div>
+
+    <div class="error-msg" id="error-box"></div>
+
+    <div id="portal-content">
+      <!-- Social Sign In Section -->
+      <div class="social-section" id="social-container" style="display:none;">
+        <!-- Buttons rendered dynamically -->
+      </div>
+
+      <div class="divider" id="portal-divider" style="display:none;">Or register manually</div>
+
+      <!-- Manual Form Section -->
+      <form id="manual-form" onsubmit="handleManualSubmit(event)">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" id="guest-name" class="form-input" placeholder="Enter your name" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone Number *</label>
+          <input type="tel" id="guest-phone" class="form-input" placeholder="e.g. 0812345678" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">LINE ID</label>
+          <input type="text" id="guest-line" class="form-input" placeholder="e.g. line_id (optional)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="guest-email" class="form-input" placeholder="e.g. guest@example.com">
+        </div>
+        <button type="submit" class="btn-submit">⚡ Connect Wi-Fi</button>
+      </form>
+    </div>
+
+    <!-- Loader Screen -->
+    <div class="loader-wrap" id="loader-screen">
+      <div class="spinner"></div>
+      <h3 style="margin-bottom:8px;">Authorizing Access...</h3>
+      <p style="color:var(--text-muted); font-size:14px;">Please wait while we connect your device to the internet.</p>
+    </div>
+  </div>
+
+  <script>
+    // 1. Parse URL Parameters (UniFi format)
+    const urlParams = new URLSearchParams(window.location.search);
+    const clientMac = urlParams.get('id') || '';  // Client MAC address
+    const apMac = urlParams.get('ap') || '';      // AP MAC address
+    const ssid = urlParams.get('ssid') || 'Guest Network';
+    const redirectUrl = urlParams.get('url') || 'https://www.google.com';
+
+    // Update SSID display
+    document.getElementById('ssid-badge').innerText = `🔗 ${ssid}`;
+
+    // 2. Fetch configurations from server
+    async function loadPortalConfig() {
+      try {
+        const res = await fetch('/api/guest/config');
+        const config = await res.json();
+        
+        const socialContainer = document.getElementById('social-container');
+        const divider = document.getElementById('portal-divider');
+        let hasSocial = false;
+
+        socialContainer.innerHTML = '';
+
+        if (config.google) {
+          hasSocial = true;
+          socialContainer.innerHTML += `
+            <a href="/api/guest/login?provider=google&mac=${encodeURIComponent(clientMac)}&ap=${encodeURIComponent(apMac)}&ssid=${encodeURIComponent(ssid)}&redirect_url=${encodeURIComponent(redirectUrl)}" class="btn-social btn-google">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.187 4.114-3.415 0-6.19-2.775-6.19-6.19s2.775-6.19 6.19-6.19c1.7 0 3.22.685 4.33 1.78l3.13-3.13C19.16 2.68 15.89 1.5 12.24 1.5 6.09 1.5 1.12 6.47 1.12 12.62s4.97 11.12 11.12 11.12c6.26 0 11.24-4.97 11.24-11.12 0-.78-.07-1.53-.24-2.335H12.24z"/></svg>
+              Sign in with Google
+            </a>`;
+        }
+
+        if (config.line) {
+          hasSocial = true;
+          socialContainer.innerHTML += `
+            <a href="/api/guest/login?provider=line&mac=${encodeURIComponent(clientMac)}&ap=${encodeURIComponent(apMac)}&ssid=${encodeURIComponent(ssid)}&redirect_url=${encodeURIComponent(redirectUrl)}" class="btn-social btn-line">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.036 9.586.39.084.922.258 1.057.592.12.3.077.769.038 1.073-.04.3-.186 1.8-.24 2.324-.073.7.3 1.092.8 1.092.47 0 1.258-.592 1.77-1.073 1.488-1.4 3.738-4.04 4.545-5.592 2.587-2.115 4-4.885 4-7.531z"/></svg>
+              Sign in with LINE
+            </a>`;
+        }
+
+        if (config.github) {
+          hasSocial = true;
+          socialContainer.innerHTML += `
+            <a href="/api/guest/login?provider=github&mac=${encodeURIComponent(clientMac)}&ap=${encodeURIComponent(apMac)}&ssid=${encodeURIComponent(ssid)}&redirect_url=${encodeURIComponent(redirectUrl)}" class="btn-social btn-github">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+              Sign in with GitHub
+            </a>`;
+        }
+
+        if (hasSocial) {
+          socialContainer.style.display = 'flex';
+          divider.style.display = 'flex';
+        }
+      } catch (err) {
+        console.error('Failed to load portal configuration:', err);
+      }
+    }
+
+    // 3. Handle Local Form Submit
+    async function handleManualSubmit(e) {
+      e.preventDefault();
+      
+      const name = document.getElementById('guest-name').value.trim();
+      const phone = document.getElementById('guest-phone').value.trim();
+      const lineId = document.getElementById('guest-line').value.trim();
+      const email = document.getElementById('guest-email').value.trim();
+      
+      const errorBox = document.getElementById('error-box');
+      errorBox.style.display = 'none';
+
+      if (!name || !phone) {
+        errorBox.innerText = 'Name and Phone Number are required.';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      // Hide content & show loader
+      document.getElementById('portal-content').style.display = 'none';
+      document.getElementById('loader-screen').style.display = 'block';
+
+      try {
+        const res = await fetch('/api/guest/register-local', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            mac_address: clientMac,
+            ap_mac: apMac,
+            ssid: ssid,
+            redirect_url: redirectUrl,
+            name,
+            phone,
+            line_id: lineId,
+            email
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to authorize guest access.');
+
+        // Successfully authorized! Redirect to target
+        window.location.href = data.redirect;
+      } catch (err) {
+        // Show error and bring back form
+        document.getElementById('loader-screen').style.display = 'none';
+        document.getElementById('portal-content').style.display = 'block';
+        
+        errorBox.innerText = err.message;
+        errorBox.style.display = 'block';
+      }
+    }
+
+    // Run onload
+    loadPortalConfig();
+  </script>
+</body>
+</html>

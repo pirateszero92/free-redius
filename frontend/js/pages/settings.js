@@ -11,6 +11,7 @@ registerPage('settings', {
       <div class="tabs">
         <div class="tab active" id="stab-ad" onclick="switchSettingsTab('ad')">🏢 Active Directory</div>
         <div class="tab" id="stab-general" onclick="switchSettingsTab('general')">⚙️ General</div>
+        <div class="tab" id="stab-guest" onclick="switchSettingsTab('guest')">🌐 Guest Portal</div>
         <div class="tab" id="stab-admins" onclick="switchSettingsTab('admins')">👤 Admin Users</div>
         <div class="tab" id="stab-password" onclick="switchSettingsTab('password')">🔑 Change Password</div>
       </div>
@@ -29,7 +30,13 @@ function switchSettingsTab(tab) {
   settingsTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById(`stab-${tab}`).classList.add('active');
-  const fns = { ad: renderAdTab, general: renderGeneralTab, admins: renderAdminsTab, password: renderPasswordTab };
+  const fns = { 
+    ad: renderAdTab, 
+    general: renderGeneralTab, 
+    guest: renderGuestTab,
+    admins: renderAdminsTab, 
+    password: renderPasswordTab 
+  };
   if (fns[tab]) fns[tab]();
 }
 
@@ -354,15 +361,153 @@ async function renderGeneralTab() {
   }
 }
 
-async function saveGeneralSettings() {
+async function renderGuestTab() {
+  const el = document.getElementById('settings-tab-content');
+  el.innerHTML = renderLoading();
   try {
-    await API.put('/settings/app', {
-      site_name: document.getElementById('gs-sitename').value.trim(),
-      session_timeout: document.getElementById('gs-timeout').value,
-      max_sessions_per_user: document.getElementById('gs-maxsess').value,
+    const s = await API.get('/settings/guest');
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+        <!-- Left Column: UniFi Controller -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">📡 UniFi Controller API Settings</span></div>
+          <div class="form-group">
+            <label class="form-label">UniFi Controller URL *</label>
+            <input id="gp-unifi-url" class="form-input" value="${s.unifi_url || ''}" placeholder="https://192.168.22.10:8443">
+            <div class="form-hint">The base IP/URL of your UniFi controller including port.</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Admin Username *</label>
+              <input id="gp-unifi-user" class="form-input" value="${s.unifi_username || ''}" placeholder="Admin user">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Admin Password *</label>
+              <input id="gp-unifi-pass" type="password" class="form-input" value="${s.unifi_password || ''}" placeholder="••••••••">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">UniFi Site Name</label>
+              <input id="gp-unifi-site" class="form-input" value="${s.unifi_site || 'default'}" placeholder="default">
+              <div class="form-hint">Default is usually 'default'</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Session Duration (minutes)</label>
+              <input id="gp-duration" type="number" class="form-input" value="${s.session_duration_mins || 120}" placeholder="120">
+              <div class="form-hint">Time allowed before re-authentication is required.</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">SSL Verification</label>
+            <div class="toggle-wrap">
+              <label class="toggle">
+                <input type="checkbox" id="gp-unifi-ssl" ${s.unifi_verify_ssl ? 'checked' : ''}>
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-label">Verify UniFi Controller SSL (uncheck for self-signed certificates)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Social OAuth2 Configurations -->
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <!-- Google OAuth2 -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Google Authentication</span>
+              <div class="toggle-wrap" style="margin-left:auto;margin-top:0;">
+                <label class="toggle">
+                  <input type="checkbox" id="gp-google-enabled" ${s.google_enabled ? 'checked' : ''}>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Google Client ID</label>
+              <input id="gp-google-id" class="form-input" value="${s.google_client_id || ''}" placeholder="Google Client ID">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Google Client Secret</label>
+              <input id="gp-google-secret" type="password" class="form-input" value="${s.google_client_secret || ''}" placeholder="${s.google_client_secret ? '••••••••' : 'Secret Key'}">
+            </div>
+          </div>
+
+          <!-- LINE Login OAuth2 -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">LINE Login Authentication</span>
+              <div class="toggle-wrap" style="margin-left:auto;margin-top:0;">
+                <label class="toggle">
+                  <input type="checkbox" id="gp-line-enabled" ${s.line_enabled ? 'checked' : ''}>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">LINE Channel ID</label>
+              <input id="gp-line-id" class="form-input" value="${s.line_client_id || ''}" placeholder="LINE Channel ID">
+            </div>
+            <div class="form-group">
+              <label class="form-label">LINE Channel Secret</label>
+              <input id="gp-line-secret" type="password" class="form-input" value="${s.line_client_secret || ''}" placeholder="${s.line_client_secret ? '••••••••' : 'Secret Key'}">
+            </div>
+          </div>
+
+          <!-- GitHub OAuth2 -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">GitHub Authentication</span>
+              <div class="toggle-wrap" style="margin-left:auto;margin-top:0;">
+                <label class="toggle">
+                  <input type="checkbox" id="gp-github-enabled" ${s.github_enabled ? 'checked' : ''}>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">GitHub Client ID</label>
+              <input id="gp-github-id" class="form-input" value="${s.github_client_id || ''}" placeholder="GitHub Client ID">
+            </div>
+            <div class="form-group">
+              <label class="form-label">GitHub Client Secret</label>
+              <input id="gp-github-secret" type="password" class="form-input" value="${s.github_client_secret || ''}" placeholder="${s.github_client_secret ? '••••••••' : 'Secret Key'}">
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-top:20px;text-align:right;">
+        <button class="btn btn-primary" onclick="saveGuestSettings()" style="padding:10px 24px;">💾 Save Guest Portal Settings</button>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span>${err.message}</div>`;
+  }
+}
+
+async function saveGuestSettings() {
+  try {
+    await API.post('/settings/guest', {
+      unifi_url: document.getElementById('gp-unifi-url').value.trim(),
+      unifi_username: document.getElementById('gp-unifi-user').value.trim(),
+      unifi_password: document.getElementById('gp-unifi-pass').value,
+      unifi_site: document.getElementById('gp-unifi-site').value.trim(),
+      unifi_verify_ssl: document.getElementById('gp-unifi-ssl').checked,
+      session_duration_mins: document.getElementById('gp-duration').value,
+      google_client_id: document.getElementById('gp-google-id').value.trim(),
+      google_client_secret: document.getElementById('gp-google-secret').value,
+      google_enabled: document.getElementById('gp-google-enabled').checked,
+      github_client_id: document.getElementById('gp-github-id').value.trim(),
+      github_client_secret: document.getElementById('gp-github-secret').value,
+      github_enabled: document.getElementById('gp-github-enabled').checked,
+      line_client_id: document.getElementById('gp-line-id').value.trim(),
+      line_client_secret: document.getElementById('gp-line-secret').value,
+      line_enabled: document.getElementById('gp-line-enabled').checked
     });
-    toast('Settings saved', 'success');
-  } catch (err) { toast(err.message, 'error'); }
+    toast('Guest Portal settings saved', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 /* ---- Admin Users Tab ---- */

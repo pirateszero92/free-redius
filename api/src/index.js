@@ -16,6 +16,7 @@ const aclRoutes = require('./routes/acl');
 const logsRoutes = require('./routes/logs');
 const reportsRoutes = require('./routes/reports');
 const devicesRoutes = require('./routes/devices');
+const guestRoutes = require('./routes/guest');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,6 +50,7 @@ app.use('/api/acl', aclRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/devices', devicesRoutes);
+app.use('/api/guest', guestRoutes);
 
 // 404
 app.use((req, res) => {
@@ -116,6 +118,76 @@ app.listen(PORT, async () => {
     }
   } catch (err) {
     console.error('[API] Failed to create device_registry table:', err.message);
+  }
+
+  // Create guest portal tables if not exists
+  try {
+    const db = require('./db/knex');
+    
+    const hasGuestUsersTable = await db.schema.hasTable('guest_users');
+    if (!hasGuestUsersTable) {
+      await db.schema.createTable('guest_users', table => {
+        table.increments('id').primary();
+        table.string('mac_address', 20).notNullable();
+        table.string('provider', 50).notNullable();
+        table.string('social_id', 255).notNullable();
+        table.string('email', 255);
+        table.string('name', 255);
+        table.timestamps(true, true);
+      });
+      console.log('[API] Created guest_users table');
+    }
+
+    const hasGuestSessionsTable = await db.schema.hasTable('guest_sessions');
+    if (!hasGuestSessionsTable) {
+      await db.schema.createTable('guest_sessions', table => {
+        table.increments('id').primary();
+        table.string('mac_address', 20).notNullable();
+        table.string('ap_mac', 20);
+        table.string('ssid', 128);
+        table.timestamp('authorized_at').defaultTo(db.fn.now());
+        table.timestamp('expires_at').notNullable();
+      });
+      console.log('[API] Created guest_sessions table');
+    }
+
+    const hasGuestSettingsTable = await db.schema.hasTable('guest_settings');
+    if (!hasGuestSettingsTable) {
+      await db.schema.createTable('guest_settings', table => {
+        table.increments('id').primary();
+        table.string('unifi_url', 255);
+        table.string('unifi_username', 128);
+        table.string('unifi_password', 255);
+        table.string('unifi_site', 128).defaultTo('default');
+        table.boolean('unifi_verify_ssl').defaultTo(false);
+        table.integer('session_duration_mins').defaultTo(120);
+        table.string('google_client_id', 255);
+        table.string('google_client_secret', 255);
+        table.boolean('google_enabled').defaultTo(false);
+        table.string('github_client_id', 255);
+        table.string('github_client_secret', 255);
+        table.boolean('github_enabled').defaultTo(false);
+        table.string('line_client_id', 255);
+        table.string('line_client_secret', 255);
+        table.boolean('line_enabled').defaultTo(false);
+        table.timestamps(true, true);
+      });
+      console.log('[API] Created guest_settings table');
+
+      // Seed default settings row
+      await db('guest_settings').insert({
+        id: 1,
+        unifi_site: 'default',
+        unifi_verify_ssl: false,
+        session_duration_mins: 120,
+        google_enabled: false,
+        github_enabled: false,
+        line_enabled: false
+      });
+      console.log('[API] Seeded default guest_settings row');
+    }
+  } catch (err) {
+    console.error('[API] Failed to run guest portal schema migrations:', err.message);
   }
 
   // Seed default admin user if not exists (atomic upsert — safe for concurrent startup)
