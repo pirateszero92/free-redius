@@ -119,8 +119,11 @@ router.get('/login', async (req, res) => {
       redirect_url: redirect_url || 'https://www.google.com'
     });
 
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.get('host');
+    let protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    if (host.includes('superpart.co.th')) {
+      protocol = 'https';
+    }
     const redirectUri = `${protocol}://${host}/api/guest/oauth/callback?provider=${provider}`;
 
     let authUrl = '';
@@ -168,8 +171,11 @@ router.get('/oauth/callback', async (req, res) => {
     const settings = await db('guest_settings').where({ id: 1 }).first();
     if (!settings) return res.status(500).send('Guest Portal settings not configured.');
 
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.get('host');
+    let protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    if (host.includes('superpart.co.th')) {
+      protocol = 'https';
+    }
     const redirectUri = `${protocol}://${host}/api/guest/oauth/callback?provider=${provider}`;
 
     let socialId = '';
