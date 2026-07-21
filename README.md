@@ -179,9 +179,10 @@ Wait ~30 seconds for the containers to fully start and run database migrations. 
 | Service | Port | Description |
 |---|---|---|
 | **nginx** | `80` (external) | Serves the static Web UI and reverse-proxies API requests. |
-| **api** | `3000` (internal) | Node.js REST API providing backend routes and Active Directory Sync cron scheduler. |
+| **api** | `3000` (internal) | Node.js REST API providing backend routes, Active Directory Sync cron scheduler, and Guest Portal APIs. |
+| **docker-socket-proxy** | `2375` (internal) | Restricts Docker API access for safety, shielding the host from potential container escape vectors. |
 | **freeradius** | `1812/udp`, `1813/udp` | RADIUS server for Authentication and Accounting requests. |
-| **postgres** | `5432` (internal) | PostgreSQL Database storing user profiles, group profiles, device registry, and accounting records. |
+| **postgres** | `5432` (internal) | PostgreSQL Database storing configs, guest data, user/group profiles, and accounting records. |
 
 ---
 
@@ -213,6 +214,40 @@ Wait ~30 seconds for the containers to fully start and run database migrations. 
 *   To promote an existing AD user (like `arthit.n`), select them from the **Promote Existing User** dropdown.
 *   Set their Authentication Source to **Active Directory (AD)**. The password field will be hidden.
 *   Click **Create**. The user `arthit.n` can now log in to this console using their corporate AD password.
+
+### 5. Configure Guest Portal & Social Logins
+*   Navigate to **Settings** -> **Guest Portal** tab in the administrator console.
+*   **UniFi Controller Settings**: Enter your UniFi controller IP/URL (e.g. `https://192.168.1.244:8443`), username, password, site ID, and toggle SSL validation.
+*   **Social Sign-In Channels**: 
+    *   To enable **Google, LINE, or GitHub** OAuth2 logins, input the respective Client ID and Client Secret, then check the **Enabled** box for that provider.
+    *   Configure Walled Garden (Pre-Authorization Access list) on your UniFi controller to allow traffic to:
+        *   `guest-portal.superpart.co.th`
+        *   `accounts.google.com` (for Google login)
+        *   `access.line.me` & `api.line.me` (for LINE login)
+*   Guests joining the network will automatically redirect to the responsive, glassmorphic landing page where they can register locally or authenticate via social accounts.
+
+---
+
+## 💻 Local Windows vs. Linux Deployment Guide (Samba Mounts)
+
+Active Directory authentication via PEAP-MSCHAPv2 relies on Samba/Winbind socket communication (`winbindd_privileged`).
+*   **Linux / Production**: Ensure Samba is active on the host and the GID matches. The volume mounts in `docker-compose.yml` must remain uncommented.
+*   **Windows / Local Development**: Since Windows lacks local Samba sockets, running `docker compose` with winbind mounts will crash with an OCI runtime mount failure. **Comment out** these volume lines in `docker-compose.yml` under the `freeradius` service to test the REST API, Guest Portal, and database locally:
+    ```yaml
+    # - /var/lib/samba/winbindd_privileged:/var/lib/samba/winbindd_privileged
+    # - /etc/samba/smb.conf:/etc/samba/smb.conf:ro
+    ```
+
+---
+
+## 🔒 Security Hardening & API Protection
+
+The system includes multiple enterprise-grade security hardening features built-in:
+*   **Docker Daemon Isolation**: The API container no longer mounts the raw host `/var/run/docker.sock`. Instead, it routes calls through a restricted TCP Docker Socket Proxy (`tecnativa/docker-socket-proxy`), allowing only container restart and log retrieval requests.
+*   **OAuth State Tampering Protection**: The OAuth2 state query parameters are signed using HMAC-SHA256 with `JWT_SECRET`. Tampered state parameters are rejected immediately, preventing MAC-forgery authentication bypass.
+*   **Reflected XSS Protection**: All user-supplied redirect parameters are sanitized using HTML escaping and protocol scheme whitelist validation before rendering.
+*   **API Throttling & Rate Limiting**: Anti-brute force limiters protect `/api/auth/login` (max 20 per 15 minutes) and `/api/guest/register-local` (max 10 per 10 minutes).
+*   **Default Password Alert**: Prints high-visibility startup warning messages in console logs if default credentials or keys are active.
 
 ---
 
