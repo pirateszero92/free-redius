@@ -9,15 +9,34 @@ router.use(auth);
 // Helper to restart FreeRADIUS container when NAS list changes
 function restartRadiusContainer() {
   return new Promise((resolve) => {
-    const options = {
+    let options = {
       socketPath: '/var/run/docker.sock',
       path: '/containers/freeradius-server/restart',
       method: 'POST'
     };
+
+    if (process.env.DOCKER_HOST) {
+      try {
+        const urlStr = process.env.DOCKER_HOST.replace('tcp://', 'http://');
+        const url = new URL(urlStr);
+        options = {
+          host: url.hostname,
+          port: url.port || 2375,
+          path: '/containers/freeradius-server/restart',
+          method: 'POST'
+        };
+      } catch (e) {
+        console.error('[nas/restart] Failed to parse DOCKER_HOST env:', e.message);
+      }
+    }
+
     const req = http.request(options, res => {
       resolve(res.statusCode === 204);
     });
-    req.on('error', () => resolve(false));
+    req.on('error', (err) => {
+      console.error('[nas/restart] Request error:', err.message);
+      resolve(false);
+    });
     req.end();
   });
 }
@@ -71,10 +90,14 @@ router.post('/', async (req, res) => {
       created_at: new Date(), updated_at: new Date()
     }).returning('id');
 
-    // Trigger FreeRADIUS reload in the background
-    restartRadiusContainer();
+    // M-8 FIX: Await the restart and report the outcome to the admin
+    const reloaded = await restartRadiusContainer();
 
-    res.status(201).json({ message: 'NAS client created (RADIUS service restarted)' });
+    res.status(201).json({
+      message: 'NAS client created',
+      radius_reloaded: reloaded,
+      radius_reload_note: reloaded ? 'RADIUS service restarted successfully.' : 'Warning: RADIUS service could not be restarted. Changes may not take effect until the next restart.'
+    });
   } catch (err) {
     console.error('[nas/create]', err);
     res.status(500).json({ error: 'Failed to create NAS client' });
@@ -102,10 +125,14 @@ router.put('/:id', async (req, res) => {
 
     await db('nas').where({ id: req.params.id }).update(updates);
 
-    // Trigger FreeRADIUS reload in the background
-    restartRadiusContainer();
+    // M-8 FIX: Await and report outcome
+    const reloaded = await restartRadiusContainer();
 
-    res.json({ message: 'NAS client updated (RADIUS service restarted)' });
+    res.json({
+      message: 'NAS client updated',
+      radius_reloaded: reloaded,
+      radius_reload_note: reloaded ? 'RADIUS service restarted successfully.' : 'Warning: RADIUS service could not be restarted. Changes may not take effect until the next restart.'
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update NAS client' });
   }
@@ -117,10 +144,14 @@ router.delete('/:id', async (req, res) => {
     const deleted = await db('nas').where({ id: req.params.id }).delete();
     if (!deleted) return res.status(404).json({ error: 'NAS client not found' });
 
-    // Trigger FreeRADIUS reload in the background
-    restartRadiusContainer();
+    // M-8 FIX: Await and report outcome
+    const reloaded = await restartRadiusContainer();
 
-    res.json({ message: 'NAS client deleted (RADIUS service restarted)' });
+    res.json({
+      message: 'NAS client deleted',
+      radius_reloaded: reloaded,
+      radius_reload_note: reloaded ? 'RADIUS service restarted successfully.' : 'Warning: RADIUS service could not be restarted. Changes may not take effect until the next restart.'
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete NAS client' });
   }

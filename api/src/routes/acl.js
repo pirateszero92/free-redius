@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/knex');
 const auth = require('../middleware/auth');
+const { getMacFormats } = require('../utils/mac'); // L-1 FIX: use shared utility
 
 router.use(auth);
 
@@ -120,7 +121,6 @@ router.put('/:id', async (req, res) => {
       const f3 = clean.match(/.{1,2}/g).join('-');
       return [f1, f2, f3, f1.toUpperCase(), f2.toUpperCase(), f3.toUpperCase()];
     }
-
     // Single transaction covers all users, groups AND devices — no partial updates
     await db.transaction(async trx => {
       for (const u of users) {
@@ -194,27 +194,44 @@ router.delete('/:id', async (req, res) => {
     const profile = await db('acl_profiles').where({ id: req.params.id }).first();
     if (!profile) return res.status(404).json({ error: 'ACL profile not found' });
 
-    // Clean up radreply for users
-    const users = await db('user_profiles').where({ acl_profile_id: req.params.id });
-    for (const u of users) {
-      await db('radreply')
-        .where({ username: u.username })
-        .whereIn('attribute', ['Tunnel-Type', 'Tunnel-Medium-Type', 'Tunnel-Private-Group-Id', 'Cisco-AVPair', 'Aruba-User-Role', 'Filter-Id'])
-        .delete();
-    }
+    const ACL_ATTRS = ['Tunnel-Type', 'Tunnel-Medium-Type', 'Tunnel-Private-Group-Id', 'Cisco-AVPair', 'Aruba-User-Role', 'Filter-Id'];
 
-    // Clean up radgroupreply for groups
-    const groups = await db('group_profiles').where({ acl_profile_id: req.params.id });
-    for (const g of groups) {
-      await db('radgroupreply')
-        .where({ groupname: g.groupname })
-        .whereIn('attribute', ['Tunnel-Type', 'Tunnel-Medium-Type', 'Tunnel-Private-Group-Id', 'Cisco-AVPair', 'Aruba-User-Role', 'Filter-Id'])
-        .delete();
-    }
+    // M-6 FIX: Wrap all cleanup and deletion in a single transaction for atomicity
+    await db.transaction(async trx => {
+      // Clean up radreply for users
+      const users = await trx('user_profiles').where({ acl_profile_id: req.params.id });
+      for (const u of users) {
+        await trx('radreply')
+          .where({ username: u.username })
+          .whereIn('attribute', ACL_ATTRS)
+          .delete();
+      }
 
-    await db('acl_profiles').where({ id: req.params.id }).delete();
+      // Clean up radreply for devices
+      const devices = await trx('device_registry').where({ acl_profile_id: req.params.id });
+      for (const d of devices) {
+        const formats = getMacFormats(d.mac_address);
+        await trx('radreply')
+          .whereIn('username', formats)
+          .whereIn('attribute', ACL_ATTRS)
+          .delete();
+      }
+
+      // Clean up radgroupreply for groups
+      const groups = await trx('group_profiles').where({ acl_profile_id: req.params.id });
+      for (const g of groups) {
+        await trx('radgroupreply')
+          .where({ groupname: g.groupname })
+          .whereIn('attribute', ACL_ATTRS)
+          .delete();
+      }
+
+      await trx('acl_profiles').where({ id: req.params.id }).delete();
+    });
+
     res.json({ message: 'ACL profile deleted and associated RADIUS attributes cleared' });
   } catch (err) {
+    console.error('[acl/delete]', err);
     res.status(500).json({ error: 'Failed to delete ACL profile' });
   }
 });

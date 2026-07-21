@@ -323,6 +323,22 @@
     // Update SSID display
     document.getElementById('ssid-badge').innerText = `🔗 ${ssid}`;
 
+    // L-4 FIX: Warn user if client MAC is missing (e.g., direct navigation instead of UniFi redirect)
+    if (!clientMac) {
+      const errorBox = document.getElementById('error-box');
+      errorBox.innerText = '⚠️ Device MAC address is missing. Please connect to the Wi-Fi network to load the guest portal properly.';
+      errorBox.style.display = 'block';
+
+      // Disable manual form submit button
+      const submitBtn = document.querySelector('.btn-submit');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+      }
+    }
+
+
     // 2. Fetch configurations from server
     async function loadPortalConfig() {
       try {

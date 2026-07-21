@@ -56,7 +56,8 @@ router.get('/live-sessions', async (req, res) => {
       )
       .where(function () {
         this.whereNull('radacct.acctstoptime')
-          .orWhere('radacct.acctstoptime', '>=', db.raw(`NOW() - INTERVAL '${minutes} minutes'`));
+          // M-4 FIX: Use Knex binding syntax instead of string interpolation for raw SQL
+          .orWhere('radacct.acctstoptime', '>=', db.raw('NOW() - ? * INTERVAL \'1 minute\'', [minutes]));
       });
 
     if (search) {

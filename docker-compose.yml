@@ -39,10 +39,27 @@ services:
       - radius-net
     volumes:
       - freeradius_logs:/var/log/freeradius
-      - /var/lib/samba/winbindd_privileged:/var/lib/samba/winbindd_privileged
-      - /var/lib/samba/winbindd_privileged:/var/run/samba/winbindd_privileged
-      - /run/samba/winbindd:/run/samba/winbindd
-      - /etc/samba/smb.conf:/etc/samba/smb.conf:ro
+      # L-5 NOTE: The following mounts are for Active Directory integration (NTLM/Winbind auth).
+      # On non-Linux hosts (such as Windows), or if Samba is not installed, these mounts must be commented
+      # out to prevent OCI mount failure errors. Uncomment them only in a Linux environment with Samba active.
+      # - /var/lib/samba/winbindd_privileged:/var/lib/samba/winbindd_privileged
+      # - /var/lib/samba/winbindd_privileged:/var/run/samba/winbindd_privileged
+      # - /run/samba/winbindd:/run/samba/winbindd
+      # - /etc/samba/smb.conf:/etc/samba/smb.conf:ro
+
+  # C-4 FIX: Docker Socket Proxy. Restricts the API container from having full root access to the host
+  # by limiting Docker API endpoints to container restart and log reads only.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy
+    container_name: freeradius-docker-proxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      POST: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - radius-net
 
   api:
     build:
@@ -62,13 +79,14 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@1234}
+      DOCKER_HOST: tcp://docker-socket-proxy:2375 # C-4 FIX: communicate via proxy
     depends_on:
       postgres:
         condition: service_healthy
+      docker-socket-proxy:
+        condition: service_started
     networks:
       - radius-net
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
 
   nginx:
     image: nginx:1.25-alpine

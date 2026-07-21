@@ -2,12 +2,27 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const db = require('../db/knex');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
+// C-3 FIX: Fail fast — never use a fallback secret
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('[FATAL] JWT_SECRET environment variable is not set. Refusing to start.');
+  process.exit(1);
+}
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 const ldap = require('ldapjs');
+
+// H-4 FIX: Rate limit login attempts (max 20 per 15 minutes per IP)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' }
+});
 
 async function authenticateLdapUser(username, password) {
   const settings = await db('ad_settings').where({ id: 1 }).first();
@@ -20,12 +35,15 @@ async function authenticateLdapUser(username, password) {
 
   const client = ldap.createClient({
     url,
-    tlsOptions: settings.use_ssl ? { rejectUnauthorized: false } : undefined,
+    // H-8 NOTE: rejectUnauthorized is intentionally left as true (default).
+    // If using a self-signed cert, configure a custom CA via NODE_EXTRA_CA_CERTS
+    // instead of disabling verification entirely.
+    tlsOptions: settings.use_ssl ? { rejectUnauthorized: true } : undefined,
     connectTimeout: 5000,
     timeout: 5000,
   });
 
-  // Try to resolve domain from base_dn (e.g. "DC=VSKAUTOPARTS,DC=LOCAL" -> "vskautoparts.local")
+  // Resolve domain from base_dn (e.g. "DC=CORP,DC=LOCAL" -> "corp.local")
   const domainParts = settings.base_dn
     ? settings.base_dn
         .split(',')
@@ -38,17 +56,22 @@ async function authenticateLdapUser(username, password) {
   return new Promise((resolve, reject) => {
     client.bind(bindUser, password, (err) => {
       try { client.unbind(); } catch (_) {}
-      if (err) {
-        reject(err);
-      } else {
-        resolve(true);
-      }
+      if (err) reject(err);
+      else resolve(true);
     });
   });
 }
 
+// M-9 FIX: Basic password complexity check
+function validatePasswordComplexity(password) {
+  if (!password || password.length < 8) {
+    return 'Password must be at least 8 characters long.';
+  }
+  return null; // null = valid
+}
+
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -112,6 +135,12 @@ router.post('/change-password', auth, async (req, res) => {
     const { current_password, new_password } = req.body;
     if (!current_password || !new_password) {
       return res.status(400).json({ error: 'current_password and new_password are required' });
+    }
+
+    // M-9 FIX: Validate new password complexity
+    const complexityError = validatePasswordComplexity(new_password);
+    if (complexityError) {
+      return res.status(400).json({ error: complexityError });
     }
 
     const user = await db('admin_users').where({ id: req.user.id }).first();

@@ -8,11 +8,26 @@ router.use(auth);
 // Helper to query logs from Docker socket
 function getContainerLogs(containerName, tailLines = 150) {
   return new Promise((resolve, reject) => {
-    const options = {
+    let options = {
       socketPath: '/var/run/docker.sock',
       path: `/containers/${containerName}/logs?stdout=true&stderr=true&tail=${tailLines}`,
       method: 'GET'
     };
+
+    if (process.env.DOCKER_HOST) {
+      try {
+        const urlStr = process.env.DOCKER_HOST.replace('tcp://', 'http://');
+        const url = new URL(urlStr);
+        options = {
+          host: url.hostname,
+          port: url.port || 2375,
+          path: `/containers/${containerName}/logs?stdout=true&stderr=true&tail=${tailLines}`,
+          method: 'GET'
+        };
+      } catch (e) {
+        console.error('[logs/fetch] Failed to parse DOCKER_HOST env:', e.message);
+      }
+    }
 
     const req = http.request(options, res => {
       if (res.statusCode !== 200) {
@@ -83,8 +98,9 @@ router.get('/', async (req, res) => {
 
     res.json({ service, containerName, logs: logOutput });
   } catch (err) {
+    // L-3 FIX: Log the full error server-side but return a generic message to the client
     console.error('[logs/fetch]', err);
-    res.status(500).json({ error: `Failed to fetch logs: ${err.message}` });
+    res.status(500).json({ error: 'Failed to fetch container logs. Check that the service name is correct.' });
   }
 });
 

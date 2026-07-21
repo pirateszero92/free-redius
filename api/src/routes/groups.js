@@ -149,13 +149,26 @@ router.put('/:groupname', async (req, res) => {
 
     // Handle replies and ACL replies
     if (reply_attributes !== undefined || acl_profile_id !== undefined) {
-      // Fetch normal custom reply attributes (that are not part of ACL profiles)
-      // Since ACL attributes are: Tunnel-Type, Tunnel-Medium-Type, Tunnel-Private-Group-Id, Cisco-AVPair, Aruba-User-Role, Filter-Id
-      // We delete all and rewrite them
+      // M-5 FIX: If only acl_profile_id changed (reply_attributes not sent),
+      // fetch existing non-ACL reply attributes from DB to preserve them.
+      // ACL-managed attributes are the ones listed below.
+      const ACL_ATTRS = ['Tunnel-Type', 'Tunnel-Medium-Type', 'Tunnel-Private-Group-Id', 'Cisco-AVPair', 'Aruba-User-Role', 'Filter-Id'];
+
+      let normalReplies;
+      if (reply_attributes !== undefined) {
+        normalReplies = reply_attributes;
+      } else {
+        // Preserve existing custom (non-ACL) replies from the database
+        normalReplies = await trx('radgroupreply')
+          .where({ groupname })
+          .whereNotIn('attribute', ACL_ATTRS)
+          .whereNot({ attribute: 'Fall-Through' })
+          .select('attribute', 'op', 'value');
+      }
+
       await trx('radgroupreply').where({ groupname }).delete();
 
       // Write normal reply attributes back
-      const normalReplies = reply_attributes || [];
       for (const attr of normalReplies) {
         await trx('radgroupreply').insert({ groupname, attribute: attr.attribute, op: attr.op || '=', value: attr.value });
       }

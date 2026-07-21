@@ -3,27 +3,12 @@ const router = express.Router();
 const db = require('../db/knex');
 const auth = require('../middleware/auth');
 const { getRadiusAttributesForAcl } = require('./acl');
+const { normalizeMacStrict, getMacFormats } = require('../utils/mac'); // L-1 FIX: use shared utility
 
 router.use(auth);
 
-// Helper to validate and format MAC
-function normalizeMac(mac) {
-  const clean = mac.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
-  if (clean.length !== 12) throw new Error('Invalid MAC address. Must be 12 hex characters.');
-  return clean.match(/.{1,2}/g).join(':'); // Standard format: aa:bb:cc:dd:ee:ff
-}
-
-// Generates 6 formats for maximum compatibility with all APs/Switches
-function getMacFormats(mac) {
-  const clean = mac.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
-  const f1 = clean;
-  const f2 = clean.match(/.{1,2}/g).join(':');
-  const f3 = clean.match(/.{1,2}/g).join('-');
-  return [
-    f1, f2, f3,
-    f1.toUpperCase(), f2.toUpperCase(), f3.toUpperCase()
-  ];
-}
+// L-1 FIX: normalizeMac/getMacFormats moved to utils/mac.js
+// normalizeMacStrict throws an Error with a human-friendly message on invalid input
 
 // GET /api/devices
 router.get('/', async (req, res) => {
@@ -71,7 +56,7 @@ router.post('/', async (req, res) => {
 
     let standardMac;
     try {
-      standardMac = normalizeMac(mac_address);
+      standardMac = normalizeMacStrict(mac_address);
     } catch (err) {
       await trx.rollback();
       return res.status(400).json({ error: err.message });
@@ -149,7 +134,7 @@ router.put('/:id', async (req, res) => {
     let standardMac = device.mac_address;
     if (mac_address && mac_address !== device.mac_address) {
       try {
-        standardMac = normalizeMac(mac_address);
+      standardMac = normalizeMacStrict(mac_address);
       } catch (err) {
         await trx.rollback();
         return res.status(400).json({ error: err.message });

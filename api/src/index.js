@@ -65,15 +65,16 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start
-app.listen(PORT, async () => {
-  console.log(`[API] FreeRADIUS API running on port ${PORT}`);
+// Bootstrapping function to run migrations and start the server
+async function bootstrap() {
   // Retry DB connection on startup
   let retries = 10;
+  let dbConnected = false;
   while (retries > 0) {
     try {
       await testConnection();
       console.log('[API] Database connected successfully');
+      dbConnected = true;
       try {
         const { startAutoSyncScheduler } = require('./utils/adSync');
         startAutoSyncScheduler();
@@ -87,6 +88,12 @@ app.listen(PORT, async () => {
       await new Promise(r => setTimeout(r, 3000));
     }
   }
+
+  if (!dbConnected) {
+    console.error('[FATAL] Failed to connect to database after 10 attempts. Exiting...');
+    process.exit(1);
+  }
+
   // Alter table schema if needed to support AD source admins
   try {
     const db = require('./db/knex');
@@ -196,6 +203,15 @@ app.listen(PORT, async () => {
     const bcrypt = require('bcrypt');
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
     const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@1234';
+
+    // H-7 startup warning check
+    if (adminPassword === 'Admin@1234') {
+      console.warn('[WARNING] API is using the default ADMIN_PASSWORD! Please change it immediately.');
+    }
+    if (process.env.JWT_SECRET && process.env.JWT_SECRET.includes('change_this')) {
+      console.warn('[WARNING] API is using the default JWT_SECRET! Please configure a secure JWT_SECRET in production.');
+    }
+
     const hash = await bcrypt.hash(adminPassword, 10);
     const inserted = await db('admin_users')
       .insert({
@@ -219,6 +235,13 @@ app.listen(PORT, async () => {
   } catch (err) {
     console.error('[API] Failed to seed admin user:', err.message);
   }
-});
+
+  // Start Express app listening
+  app.listen(PORT, () => {
+    console.log(`[API] FreeRADIUS API running on port ${PORT}`);
+  });
+}
+
+bootstrap();
 
 module.exports = app;

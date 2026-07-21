@@ -199,8 +199,8 @@ router.delete('/admin-users/:id', requireRole('superadmin'), async (req, res) =>
   }
 });
 
-// GET /api/settings/guest — Get Guest Portal Settings
-router.get('/guest', async (req, res) => {
+// GET /api/settings/guest — Get Guest Portal Settings (superadmin only)
+router.get('/guest', requireRole('superadmin'), async (req, res) => {
   try {
     const settings = await db('guest_settings').where({ id: 1 }).first();
     if (!settings) {
@@ -221,11 +221,23 @@ router.get('/guest', async (req, res) => {
 router.post('/guest', requireRole('superadmin'), async (req, res) => {
   try {
     const data = req.body;
-    
+
     if (data.unifi_password === '••••••••') delete data.unifi_password;
     if (data.google_client_secret === '••••••••') delete data.google_client_secret;
     if (data.github_client_secret === '••••••••') delete data.github_client_secret;
     if (data.line_client_secret === '••••••••') delete data.line_client_secret;
+
+    // M-7 FIX: Validate unifi_url to prevent SSRF — only allow http/https
+    if (data.unifi_url) {
+      try {
+        const parsed = new URL(data.unifi_url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return res.status(400).json({ error: 'unifi_url must use http or https protocol.' });
+        }
+      } catch {
+        return res.status(400).json({ error: 'unifi_url is not a valid URL.' });
+      }
+    }
 
     const updates = {
       unifi_url: data.unifi_url || '',
