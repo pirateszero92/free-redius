@@ -40,12 +40,11 @@ services:
     volumes:
       - freeradius_logs:/var/log/freeradius
       # L-5 NOTE: The following mounts are for Active Directory integration (NTLM/Winbind auth).
-      # On non-Linux hosts (such as Windows), or if Samba is not installed, these mounts must be commented
-      # out to prevent OCI mount failure errors. Uncomment them only in a Linux environment with Samba active.
-      # - /var/lib/samba/winbindd_privileged:/var/lib/samba/winbindd_privileged
-      # - /var/lib/samba/winbindd_privileged:/var/run/samba/winbindd_privileged
-      # - /run/samba/winbindd:/run/samba/winbindd
-      # - /etc/samba/smb.conf:/etc/samba/smb.conf:ro
+      # If running locally on Windows without Samba, these can be commented out to avoid mount errors.
+      - /var/lib/samba/winbindd_privileged:/var/lib/samba/winbindd_privileged
+      - /var/lib/samba/winbindd_privileged:/var/run/samba/winbindd_privileged
+      - /run/samba/winbindd:/run/samba/winbindd
+      - /etc/samba/smb.conf:/etc/samba/smb.conf:ro
 
   # C-4 FIX: Docker Socket Proxy. Restricts the API container from having full root access to the host
   # by limiting Docker API endpoints to container restart and log reads only.
