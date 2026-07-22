@@ -144,6 +144,14 @@ router.post('/change-password', auth, async (req, res) => {
     }
 
     const user = await db('admin_users').where({ id: req.user.id }).first();
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.source === 'ad') {
+      return res.status(400).json({ error: 'Passwords for Active Directory users must be changed directly in Active Directory.' });
+    }
+
     const valid = await bcrypt.compare(current_password, user.password);
     if (!valid) {
       return res.status(401).json({ error: 'Current password is incorrect' });

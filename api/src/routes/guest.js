@@ -251,17 +251,22 @@ router.get('/oauth/callback', async (req, res) => {
     let email = '';
 
     if (provider === 'google') {
-      const tokenRes = await axios.post('https://oauth2.googleapis.com/token', {
-        code,
-        client_id: settings.google_client_id,
-        client_secret: settings.google_client_secret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code'
+      const params = new URLSearchParams();
+      params.append('code', code);
+      params.append('client_id', settings.google_client_id);
+      params.append('client_secret', settings.google_client_secret);
+      params.append('redirect_uri', redirectUri);
+      params.append('grant_type', 'authorization_code');
+
+      const tokenRes = await axios.post('https://oauth2.googleapis.com/token', params, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 5000
       });
 
       const { access_token } = tokenRes.data;
       const userRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: `Bearer ${access_token}` }
+        headers: { Authorization: `Bearer ${access_token}` },
+        timeout: 5000
       });
 
       socialId = userRes.data.sub;
@@ -269,18 +274,24 @@ router.get('/oauth/callback', async (req, res) => {
       email = userRes.data.email || '';
 
     } else if (provider === 'github') {
-      const tokenRes = await axios.post('https://github.com/login/oauth/access_token', {
-        code,
-        client_id: settings.github_client_id,
-        client_secret: settings.github_client_secret,
-        redirect_uri: redirectUri
-      }, {
-        headers: { Accept: 'application/json' }
+      const params = new URLSearchParams();
+      params.append('code', code);
+      params.append('client_id', settings.github_client_id);
+      params.append('client_secret', settings.github_client_secret);
+      params.append('redirect_uri', redirectUri);
+
+      const tokenRes = await axios.post('https://github.com/login/oauth/access_token', params, {
+        headers: { 
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded' 
+        },
+        timeout: 5000
       });
 
       const { access_token } = tokenRes.data;
       const userRes = await axios.get('https://api.github.com/user', {
-        headers: { Authorization: `Bearer ${access_token}` }
+        headers: { Authorization: `Bearer ${access_token}` },
+        timeout: 5000
       });
 
       socialId = String(userRes.data.id);
@@ -296,12 +307,14 @@ router.get('/oauth/callback', async (req, res) => {
       params.append('grant_type', 'authorization_code');
 
       const tokenRes = await axios.post('https://api.line.me/oauth2/v2.1/token', params, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 5000
       });
 
       const { access_token } = tokenRes.data;
       const userRes = await axios.get('https://api.line.me/v2/profile', {
-        headers: { Authorization: `Bearer ${access_token}` }
+        headers: { Authorization: `Bearer ${access_token}` },
+        timeout: 5000
       });
 
       socialId = userRes.data.userId;

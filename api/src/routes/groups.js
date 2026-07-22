@@ -130,7 +130,11 @@ router.put('/:groupname', async (req, res) => {
   const trx = await db.transaction();
   try {
     const { groupname } = req.params;
-    const { description, check_attributes, reply_attributes, acl_profile_id } = req.body;
+    const existingGroup = await trx('group_profiles').where({ groupname }).first();
+    if (!existingGroup) {
+      await trx.rollback();
+      return res.status(404).json({ error: 'Group not found' });
+    }
 
     const groupUpdates = {
       updated_at: new Date()

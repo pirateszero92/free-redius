@@ -113,70 +113,94 @@ router.put('/:id', async (req, res) => {
     const groups = await db('group_profiles').where({ acl_profile_id: req.params.id });
     const devices = await db('device_registry').where({ acl_profile_id: req.params.id });
 
-    // Local helper for MAC format generation to avoid circular dependency
-    function getMacFormats(mac) {
-      const clean = mac.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
-      const f1 = clean;
-      const f2 = clean.match(/.{1,2}/g).join(':');
-      const f3 = clean.match(/.{1,2}/g).join('-');
-      return [f1, f2, f3, f1.toUpperCase(), f2.toUpperCase(), f3.toUpperCase()];
-    }
-    // Single transaction covers all users, groups AND devices — no partial updates
+    const ACL_ATTRS = ['Tunnel-Type', 'Tunnel-Medium-Type', 'Tunnel-Private-Group-Id', 'Cisco-AVPair', 'Aruba-User-Role', 'Filter-Id'];
+
+    // Single transaction with bulk operations to eliminate N+1 performance bottleneck
     await db.transaction(async trx => {
-      for (const u of users) {
+      // 1. Bulk update user radreply
+      if (users.length > 0) {
+        const usernames = users.map(u => u.username);
         await trx('radreply')
-          .where({ username: u.username })
-          .whereIn('attribute', ['Tunnel-Type', 'Tunnel-Medium-Type', 'Tunnel-Private-Group-Id', 'Cisco-AVPair', 'Aruba-User-Role', 'Filter-Id'])
+          .whereIn('username', usernames)
+          .whereIn('attribute', ACL_ATTRS)
           .delete();
-        for (const attr of newAttrs) {
-          await trx('radreply').insert({
-            username: u.username,
-            attribute: attr.attribute,
-            op: attr.op,
-            value: attr.value
-          });
+
+        if (newAttrs.length > 0) {
+          const userRows = [];
+          for (const username of usernames) {
+            for (const attr of newAttrs) {
+              userRows.push({
+                username,
+                attribute: attr.attribute,
+                op: attr.op,
+                value: attr.value
+              });
+            }
+          }
+          await trx('radreply').insert(userRows);
         }
       }
 
-      for (const d of devices) {
-        const formats = getMacFormats(d.mac_address);
+      // 2. Bulk update device radreply
+      if (devices.length > 0) {
+        const deviceFormats = devices.flatMap(d => getMacFormats(d.mac_address));
         await trx('radreply')
-          .whereIn('username', formats)
-          .whereIn('attribute', ['Tunnel-Type', 'Tunnel-Medium-Type', 'Tunnel-Private-Group-Id', 'Cisco-AVPair', 'Aruba-User-Role', 'Filter-Id'])
+          .whereIn('username', deviceFormats)
+          .whereIn('attribute', ACL_ATTRS)
           .delete();
-        for (const format of formats) {
-          for (const attr of newAttrs) {
-            await trx('radreply').insert({
-              username: format,
-              attribute: attr.attribute,
-              op: attr.op,
-              value: attr.value
+
+        if (newAttrs.length > 0) {
+          const deviceRows = [];
+          for (const format of deviceFormats) {
+            for (const attr of newAttrs) {
+              deviceRows.push({
+                username: format,
+                attribute: attr.attribute,
+                op: attr.op,
+                value: attr.value
+              });
+            }
+          }
+          await trx('radreply').insert(deviceRows);
+        }
+      }
+
+      // 3. Bulk update group radgroupreply
+      if (groups.length > 0) {
+        const groupnames = groups.map(g => g.groupname);
+        await trx('radgroupreply')
+          .whereIn('groupname', groupnames)
+          .whereIn('attribute', ACL_ATTRS)
+          .delete();
+
+        if (newAttrs.length > 0) {
+          const groupRows = [];
+          for (const groupname of groupnames) {
+            for (const attr of newAttrs) {
+              groupRows.push({
+                groupname,
+                attribute: attr.attribute,
+                op: attr.op,
+                value: attr.value
+              });
+            }
+          }
+          await trx('radgroupreply').insert(groupRows);
+        }
+
+        // Ensure Fall-Through := Yes for each group
+        for (const g of groups) {
+          const hasFallthrough = await trx('radgroupreply')
+            .where({ groupname: g.groupname, attribute: 'Fall-Through' })
+            .first();
+          if (!hasFallthrough) {
+            await trx('radgroupreply').insert({
+              groupname: g.groupname,
+              attribute: 'Fall-Through',
+              op: ':=',
+              value: 'Yes'
             });
           }
-        }
-      }
-
-      for (const g of groups) {
-        await trx('radgroupreply')
-          .where({ groupname: g.groupname })
-          .whereIn('attribute', ['Tunnel-Type', 'Tunnel-Medium-Type', 'Tunnel-Private-Group-Id', 'Cisco-AVPair', 'Aruba-User-Role', 'Filter-Id'])
-          .delete();
-        for (const attr of newAttrs) {
-          await trx('radgroupreply').insert({
-            groupname: g.groupname,
-            attribute: attr.attribute,
-            op: attr.op,
-            value: attr.value
-          });
-        }
-        const hasFallthrough = await trx('radgroupreply').where({ groupname: g.groupname, attribute: 'Fall-Through' }).first();
-        if (!hasFallthrough) {
-          await trx('radgroupreply').insert({
-            groupname: g.groupname,
-            attribute: 'Fall-Through',
-            op: ':=',
-            value: 'Yes'
-          });
         }
       }
     });

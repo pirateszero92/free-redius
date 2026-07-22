@@ -153,19 +153,10 @@ router.post('/admin-users', requireRole('superadmin'), async (req, res) => {
       const randomSecret = Math.random().toString(36).substring(2) + Date.now().toString(36);
       hash = await bcrypt.hash(randomSecret, 10);
     } else {
-      let cleartextPass = password;
-      if (!cleartextPass) {
-        // Try to fetch from radcheck if they promoted an existing local user without specifying a new password
-        const radpass = await db('radcheck')
-          .where({ username, attribute: 'Cleartext-Password' })
-          .first();
-        if (radpass) {
-          cleartextPass = radpass.value;
-        } else {
-          return res.status(400).json({ error: 'Password is required for local account' });
-        }
+      if (!password) {
+        return res.status(400).json({ error: 'Password is required for local admin accounts.' });
       }
-      hash = await bcrypt.hash(cleartextPass, 10);
+      hash = await bcrypt.hash(password, 10);
     }
 
     await db('admin_users').insert({
