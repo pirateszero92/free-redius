@@ -242,12 +242,21 @@ Active Directory authentication via PEAP-MSCHAPv2 relies on Samba/Winbind socket
 
 ## 🔒 Security Hardening & API Protection
 
-The system includes multiple enterprise-grade security hardening features built-in:
-*   **Docker Daemon Isolation**: The API container no longer mounts the raw host `/var/run/docker.sock`. Instead, it routes calls through a restricted TCP Docker Socket Proxy (`tecnativa/docker-socket-proxy`), allowing only container restart and log retrieval requests.
+The system includes multiple enterprise-grade security hardening and compliance features built-in:
+*   **OAuth 2.0 RFC 6749 Standard Compliance**: Token exchange requests for Google, GitHub, and LINE utilize `application/x-www-form-urlencoded` payloads via `URLSearchParams` with strict 5-second request timeouts to prevent server connection pool exhaustion.
+*   **Docker Daemon Isolation**: The API container does not mount the raw host `/var/run/docker.sock`. Instead, it routes calls through a restricted TCP Docker Socket Proxy (`tecnativa/docker-socket-proxy`), allowing only container restart and log retrieval requests.
 *   **OAuth State Tampering Protection**: The OAuth2 state query parameters are signed using HMAC-SHA256 with `JWT_SECRET`. Tampered state parameters are rejected immediately, preventing MAC-forgery authentication bypass.
 *   **Reflected XSS Protection**: All user-supplied redirect parameters are sanitized using HTML escaping and protocol scheme whitelist validation before rendering.
+*   **Secure Admin Promotion & AD Credentials**: Removed plain text `Cleartext-Password` fallback from database queries when promoting local admins. Explicit password creation is required for local accounts, while Active Directory users' passwords must be managed directly in AD (web password changes are safely blocked for AD accounts).
 *   **API Throttling & Rate Limiting**: Anti-brute force limiters protect `/api/auth/login` (max 20 per 15 minutes) and `/api/guest/register-local` (max 10 per 10 minutes).
 *   **Default Password Alert**: Prints high-visibility startup warning messages in console logs if default credentials or keys are active.
+
+---
+
+## ⚡ Performance Optimization & Reliability
+
+*   **Bulk Database Operations**: Dynamic ACL profile updates perform batch updates (`whereIn` + multi-row array `insert`) rather than sequential N+1 query loops, preventing database locks in large organizations.
+*   **Defensive Guarding & Null Checks**: Implemented safe null checks and strict MAC normalization helpers (`normalizeMacStrict`) across device, group, and guest routes to prevent unhandled runtime exceptions.
 
 ---
 
